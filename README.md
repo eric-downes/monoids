@@ -15,6 +15,7 @@ undergrad level, or computer programmers?
 
 1. Non-Associative Things
    - Cartesian Product
+   - Subtraction
    - Rock Paper Scissors
    - Exponentiation
    - Cross Product
