@@ -1,9 +1,11 @@
 from __future__ import annotations
 from typing import *
 
+def ident(x): return x
 
 class Endo(list):
-    def __init__(self, l:List[int]):
+    def __init__(self, l:List[int], mod:bool = False):
+        self.fcn = (lambda x: x % len(l)) if mod else ident
         super().__init__(l)
         self.is_id = self == list(range(len(self)))
         
@@ -11,11 +13,11 @@ class Endo(list):
         return self(other)
 
     def __call__(self, other:Union[int, List[int]], strict:bool = True) -> Union[Endo, list, int]:
-        if isinstance(other, int): return self[other % len(self)]
+        if isinstance(other, int): return self[self.fcn(other)]
         if strict: assert len(self) == len(other)
         if self.is_id: return other
         if isinstance(other, Endo) and other.is_id: return self
-        x = [self[i % len(self)] for i in other]
+        x = [self[self.fcn(i)] for i in other]
         if isinstance(other, list): return x
         if isinstance(other, Endo): return Endo(x)
         
