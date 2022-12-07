@@ -45,7 +45,7 @@ def double_rows(a : NDArray[T]) -> NDArray[T]:
     delta.fill(np.iinfo(a.dtype).max)
     return np.vstack((a, delta))
 
-def row_hash(r : NDArray[T]) ->  bytes:
+def row_hash(r : np.array) -> tuple[int,...]|bytes:
     if len(r) <= 100:
         return tuple(r)    
     # works so long as row is C-contiguous; otherwise consider tuple(r)
@@ -79,8 +79,7 @@ def row_closure(a:NDArray[int],
     prog = {'n': (n := a.shape[0])}
     fcn = partial(compose_and_record, dok = dok, rows = rows, prog = prog, verbose = verbose)
     app = Applicator(fcn)
-    a = double_rows(a)
-    a = app.square(a, n)
+    a = app.square(double_rows(a), n)
     a = double_rows(a)
     while n != prog['n']:
         app.extend(a, (n := prog['n']))
