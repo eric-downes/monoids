@@ -17,21 +17,21 @@ class RowMonoid:
     row_map: Rows
 
 class Applicator:
-    def __init__(self, f:Callable[[NDArray[T], int, int], NDArray[T]]):
+    def __init__(self, f : Callable[[NDArray[T], int, int], NDArray[T]]):
         self.f = f
         self.lo = 0
-    def square(self, a:NDArray[T], until:int) -> NDArray[T]:
+    def square(self, a: NDArray[T], until: int) -> NDArray[T]:
         for i,j in iprod(range(self.lo, until), range(self.lo, until)):
             a = self.f(a, i, j)
         self.lo = until
         return a
-    def extend(self, a:NDArray[T], until:int) -> NDArray[T]:
+    def extend(self, a: NDArray[T], until: int) -> NDArray[T]:
         for i,j in iprod(range(0, self.lo), range(self.lo, until)):
             a = self.f(a, i, j)
             a = self.f(a, j, i)
         return self.square(a, until)
 
-def iprod(a:NDArray[T], itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
+def iprod(itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
     for a in itera:
         for b in iterb:
             yield (a,b)
