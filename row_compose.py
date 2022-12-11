@@ -1,7 +1,8 @@
+from typing import TypeVar, Callable, Iterator
 from dataclasses import dataclass
 from functools import partial
 from hashlib import blake2b
-from typing import TypeVar, Callable, Iterator
+import sys
 
 from numpy.typing import NDArray
 from pandas import DataFrame
@@ -35,6 +36,33 @@ class Applicator:
             a = self.f(a, j, i)
         return self.square(a, until)
 
+def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
+    # somewhat fragile... need to make more robust typed relabellling system 
+    assert (n := a.shape[0]) == a.shape[1] and len(a.shape) == 2
+    rone = np.arange(a.shape[1])
+    rhas = (rone == a).all(1)
+    chas = (rone == a.T).all(1)
+    if (rhas * chas).any():
+        return a
+    a = np.where(a < 0, a - 1, a + 1) 
+    a = np.vstack((rone, a))
+    cone = np.arange(a.shape[0])
+    return np.hstack((cone, a))
+    
+def adjoin_negatives(a: NDArray[int]) -> NDArray[int]:
+    # so we can handle octonions
+    # we assume -1 associates: -xy= -1 * xy = x * (-y) 
+    assert a.shape[0] == a.shape[1] and len(a.shape) == 2
+    if (0 <= a).all(): return a
+    a = adjoin_identity(a)
+    nega = -a
+    n = len(a)
+    nega[nega == 0] = n
+    nega[nega == -n] = 0
+    a = np.hstack((np.vstack((a, nega)), np.vstack((nega, a))))
+    a = np.where(0 <= a, a, (abs(a) + n) % (2 * n))
+    return a
+    
 def iprod(itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
     for a in itera:
         for b in iterb:
@@ -107,10 +135,26 @@ def row_monoid(a: NDArray[int], verbose:bool = False) -> RowMonoid:
     return RowMonoid(a, m, rows, n0)
 
 if __name__ == '__main__':
-    fil = 'rps_monoid.csv'
-    print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
-    rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
-    data = row_monoid(rps_magma, verbose = True)
+
+    if '--octonions' in sys.argv:
+        # https://en.wikipedia.org/wiki/Octonion#Definition # with -e_0 -> 8
+        octos = adjoin_negatives(
+            np.array([[0,1,2,3,4,5,6,7], \
+                      [1,8,3,-2,5,-4,-7,6],\
+                      [2,-3,8,1,6,7,-4,-5],\
+                      [3,2,-1,8,7,-6,5,-4],\
+                      [4,-5,-6,-7,8,1,2,3],\
+                      [5,4,-7,6,-1,8,-3,2],\
+                      [6,7,4,-5,-2,3,8,-1],\
+                      [7,-6,5,4,-3,-2,1,8]]) )
+        fil = 'oct_monoid.csv'
+        print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
+        data = row_monoid(octos)
+    else:
+        fil = 'rps_monoid.csv'
+        print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
+        rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
+        data = row_monoid(rps_magma)
     DataFrame(data.monoid_table).to_csv(fil, index=False, header=False)
     print('\n\n\nresults!')
     print(f'\n\noriginal magma:\n{data.row_closure[:data.magma_order]}')
