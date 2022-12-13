@@ -213,6 +213,14 @@ def is_loop(a: NDArray[int]) -> bool:
 def is_group(a: NDArray[int]) -> bool:
     return is_loop(a) and is_associative(a)
 
+def ring_extension(a: NDArray[int]) -> NDArray[int]:
+    if not is_abelian(a) or not is_group(a):
+        return None
+    m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
+    
+    
+
+
 
 if __name__ == '__main__':
 
