@@ -14,6 +14,8 @@ DoK = dict[tuple[T, T], T]
 RowId = bytes|tuple[int,...]
 Rows = dict[RowId, int]
 
+class NovelRow(Exception): pass
+    
 @dataclass
 class RowMonoid:
     row_closure: NDArray[int]
@@ -22,18 +24,20 @@ class RowMonoid:
     magma_order: int # m.row_closure[:m.magma_order] is original magma
 
 class Applicator:
-    def __init__(self, f : Callable[[NDArray[T], int, int], NDArray[T]]):
-        self.f = f
+    def __init__(self,
+                 fcn : Callable[[NDArray[T], int, int], NDArray[T]]):
+        self.f = fcn
         self.lo = 0
     def square(self, a: NDArray[T], until: int) -> NDArray[T]:
+        a0 = a
         for i,j in iprod(range(self.lo, until), range(self.lo, until)):
-            a = self.f(a, i, j)
+            a = self.fcn(a0, i, j)
         self.lo = until
         return a
     def extend(self, a: NDArray[T], until: int) -> NDArray[T]:
         for i,j in iprod(range(0, self.lo), range(self.lo, until)):
-            a = self.f(a, i, j)
-            a = self.f(a, j, i)
+            a = self.fcn(a, i, j)
+            a = self.fcn(a, j, i)
         return self.square(a, until)
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
@@ -85,12 +89,15 @@ def compose_and_record(a: NDArray[int],
                        dok: DoK[int],
                        rows: Rows,
                        prog: dict[str, int],
-                       verbose: bool = False) -> NDArray[int]:
+                       verbose: bool = False,
+                       raise_on_novel: bool = False) -> NDArray[int]:
     n = prog['n']
     ak = a[i][ a[j] ] #even on large a, a[i] takes ns; prob dont need to cache
     k = rows.setdefault(row_hash(ak), n)
     dok[(i,j)] = k
     if k == n:
+        if raise_on_novel:
+            raise NovelRow()
         a[n] = ak
         n += 1
         if n == a.shape[0]:
@@ -101,11 +108,13 @@ def compose_and_record(a: NDArray[int],
     return a
 
 def row_closure(a:NDArray[int],
+                raise_on_novel:bool = False,
                 verbose:bool = False) -> tuple[NDArray[int], DoK[int], Rows]:
     dok = {}
     rows = {row_hash(r):i for i,r in enumerate(a)}
     prog = {'n': (n := a.shape[0])}
-    fcn = partial(compose_and_record, dok = dok, rows = rows, prog = prog, verbose = verbose)
+    fcn = partial(compose_and_record,
+                  dok = dok, rows = rows, prog = prog, verbose = verbose, raise_on_novel = raise_on_novel)
     app = Applicator(fcn)
     a = app.square(double_rows(a), n)
     a = double_rows(a)
@@ -133,6 +142,77 @@ def row_monoid(a: NDArray[int], verbose:bool = False) -> RowMonoid:
     for (i,j),k in dok.items():
         m[i,j] = k
     return RowMonoid(a, m, rows, n0)
+
+def is_square(a: NDType[T]) -> bool:
+    return a.ndim == 2 and a.shape[0] == a.shape[1]
+
+def is_abelian(a: NDArray[T]) -> bool:
+    return is_square(a) and (a.T == a).all()
+commutes = is_abelian
+
+def is_endo(a: NDArray[int]) -> bool:
+    return np.issubdtype(a.dtype, np.integer) and (a < max(a.shape)).all() and (0 <= a).all()
+
+def is_associative(a: NDArray[int]) -> bool:
+    try: row_closure(a, verbose = False, raise_on_novel = True)
+    except NovelRow: return False
+    return True
+associates = is_associative
+
+def is_unital(a: NDArray[int]) -> bool:
+    rone = np.arange(a.shape[1])
+    rhas = (rone == a).all(1)
+    cone = np.arange(a.shape[0])    
+    chas = (cone == a.T).all(1)
+    n = min(len(rhas), len(chas))
+    if (rhas[:n] * chas[:n]).any():
+        return True
+    return False
+has_unit = is_unital
+
+def potency(a: NDArray[int]) -> bool:
+    idem = True
+    uni = True
+    a0 = a[0,0]
+    for i in range(len(a)):
+        idem &= a[i,i] == i
+        uni &= a[i,i] == a0
+        if not (idem or uni):
+            break
+    return {'idempotent': idem, 'unipotent': uni}
+
+def is_bijection(row: NDArray[int]) -> bool:
+    return set(row) == set(range(len(row)))
+
+def is_left_cancellative(a: NDArray[int]) -> bool:
+    return pd.DataFrame(a).apply(is_bijective, axis = 1).prod()
+
+def is_right_cancellative(a: NDArray[int]) -> bool:
+    return is_left_cancellative(a.T)
+
+def is_latin_square(a: NDArray[int]) -> bool:
+    return is_left_cancellative(a) and is_right_cancellative(a)
+is_cancellative = is_latin_square
+has_inverses = is_latin_square
+
+def is_magma(a: NDArray[int]) -> bool:
+    return is_square(a) and is_endo(a)
+
+def is_semigroup(a: NDArray[int]) -> bool:
+    return is_magma(a) and is_associative(a)
+
+def is_quasigroup(a: NDArray[int]) -> bool:
+    return is_magma(a) and is_latin_square(a)
+
+def is_monoid(a: NDArray[int]) -> bool:
+    return is_unital(a) and is_semigroup(a)
+
+def is_loop(a: NDArray[int]) -> bool:
+    return is_quasigroup(a) and is_unital(a)
+
+def is_group(a: NDArray[int]) -> bool:
+    return is_loop(a) and is_associative(a)
+
 
 if __name__ == '__main__':
 
