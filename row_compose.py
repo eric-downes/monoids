@@ -24,20 +24,18 @@ class RowMonoid:
     magma_order: int # m.row_closure[:m.magma_order] is original magma
 
 class Applicator:
-    def __init__(self,
-                 fcn : Callable[[NDArray[T], int, int], NDArray[T]]):
+    def __init__(self, fcn : Callable[[NDArray[T], int, int], NDArray[T]]):
         self.f = fcn
         self.lo = 0
     def square(self, a: NDArray[T], until: int) -> NDArray[T]:
-        a0 = a
         for i,j in iprod(range(self.lo, until), range(self.lo, until)):
-            a = self.fcn(a0, i, j)
+            a = self.f(a, i, j)
         self.lo = until
         return a
     def extend(self, a: NDArray[T], until: int) -> NDArray[T]:
         for i,j in iprod(range(0, self.lo), range(self.lo, until)):
-            a = self.fcn(a, i, j)
-            a = self.fcn(a, j, i)
+            a = self.f(a, i, j)
+            a = self.f(a, j, i)
         return self.square(a, until)
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
@@ -143,7 +141,7 @@ def row_monoid(a: NDArray[int], verbose:bool = False) -> RowMonoid:
         m[i,j] = k
     return RowMonoid(a, m, rows, n0)
 
-def is_square(a: NDType[T]) -> bool:
+def is_square(a: NDArray[T]) -> bool:
     return a.ndim == 2 and a.shape[0] == a.shape[1]
 
 def is_abelian(a: NDArray[T]) -> bool:
