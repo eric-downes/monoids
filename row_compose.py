@@ -112,7 +112,8 @@ def row_closure(a:NDArray[int],
     rows = {row_hash(r):i for i,r in enumerate(a)}
     prog = {'n': (n := a.shape[0])}
     fcn = partial(compose_and_record,
-                  dok = dok, rows = rows, prog = prog, verbose = verbose, raise_on_novel = raise_on_novel)
+                  dok = dok, rows = rows, prog = prog,
+                  verbose = verbose, raise_on_novel = raise_on_novel)
     app = Applicator(fcn)
     a = app.square(double_rows(a), n)
     a = double_rows(a)
@@ -126,20 +127,16 @@ def row_monoid(a: NDArray[int], verbose:bool = False) -> RowMonoid:
     assert np.issubdtype(a.dtype, np.integer)
     assert len(a.shape) == 2
     assert (a < max(a.shape)).all() and (0 <= a).all()
-    n0 = a.shape[0]
+    if a.shape[1] <= a.max():
+        a = a.T
+    n_original_rows = a.shape[0]
     a, dok, rows = row_closure(a, verbose = verbose)
-    order = int(np.round(np.sqrt(len(dok))))
-    if row_hash(np.arange(order)) not in rows:
-        # adjoin an identity if one is not already present in the closure
-        e = order
-        order += 1
-        for j in range(order):
-            dok[(e, j)] = j
-            dok[(j, e)] = j
-    m = np.ndarray(dtype = a.dtype, shape = (order, order))
+    order = len(rows)
+    m = np.zeros(dtype=int, shape=(order, order))
     for (i,j),k in dok.items():
         m[i,j] = k
-    return RowMonoid(a, m, rows, n0)
+    m = adjoin_identity(m)
+    return RowMonoid(a, m, rows, n_original_rows)
 
 def is_square(a: NDArray[T]) -> bool:
     return a.ndim == 2 and a.shape[0] == a.shape[1]
@@ -183,7 +180,7 @@ def is_bijection(row: NDArray[int]) -> bool:
     return set(row) == set(range(len(row)))
 
 def is_left_cancellative(a: NDArray[int]) -> bool:
-    return pd.DataFrame(a).apply(is_bijective, axis = 1).prod()
+    return DataFrame(a).apply(is_bijection, axis = 1).prod()
 
 def is_right_cancellative(a: NDArray[int]) -> bool:
     return is_left_cancellative(a.T)
@@ -211,13 +208,73 @@ def is_loop(a: NDArray[int]) -> bool:
 def is_group(a: NDArray[int]) -> bool:
     return is_loop(a) and is_associative(a)
 
-def ring_extension(a: NDArray[int]) -> NDArray[int]:
-    if not is_abelian(a) or not is_group(a):
-        return None
-    m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
-    
-    
+def left_power_assoc_hlpr(i:int, i_to_nmk:int, a:NDArray[int], k:int) -> bool:
+    if not k:
+        return True
+    if a[(i_to_1pnmk := a[i_to_nmk, i]), i] != a[i_to_nmk, a[i, i]]:
+        return False
+    return pahlpr(i, i_to_1pnmk, a, k - 1)
 
+def is_left_power_assoc_upto(a: NDArray[int], pwr: int = 3) -> bool:
+    # rewrite using @ft.lru_cache to be more efficient
+    assert pwr >= 0
+    for i in range(len(a)):
+        if not left_pwr_assoc_hlpr(i, i, a, pwr):
+            return False
+    return True
+
+def group_orbit(i:int, a:NDArray[int], maxn:int = None) -> list[int]:
+    j = i
+    orb = [i]
+    seen = set(orb)
+    if maxn is None: maxn = len(a)
+    for _ in range(maxn):
+        j = a[j,i]
+        if j in seen: break
+        else: seen.add(j)
+        orb.append(j)
+    return orb
+
+def group_pow(i:int, pwr:int, a:NDArray[int]) -> int:
+    assert is_group(a)
+    if pwr == 0: return 0
+    if pwr == 1: return i
+    if pwr < 0:
+        i = a[i].argmin()
+        pwr = abs(pwr)
+    orb = group_orbit(i, a, pwr - 1)
+    return orb[(pwr - 1) % len(orb)]
+
+class InvalidRep(ValueError):
+    pass
+
+def is_group_rep_valid(a: NDArray[int], rep:Callable[NDArray[int],None]) -> bool:
+    try:
+        if not is_group(a):
+            raise InvalidRep('not a group')
+        rep(a)
+        return True
+    except InvalidRep as e:
+        print(e)
+        return False
+
+def rep_Q128(a: NDArray[int]) -> None:
+    # < x, y | x^64 = 1, y^2 = x^32, xyx = y >
+    if (order := len(a)) != 128:
+        raise InvalidRep(f'group order {order} != 128')
+    n32 = 0
+    for i in range(1, len(a)): # assumes ident at 0
+        iorb = group_orbit(i, a)
+        n32 += (order := len(iorb)) == 32
+        if order > 64:
+            raise InvalidRep(f'{i} has order {order} > 64')
+        for j in set(range(len(a))) - set(iorb):
+            if a[ a[i,j], i] != j:
+                raise InvalidRep(f'xyx != y for x,y = {i},{j}')
+            if a[j,j] != iorb[(32 - 1) % len(iorb)]:
+                raise InvalidRep(f'y^2 != x^32 for x,y = {i},{j}')
+    if n32 != 96:
+        raise InvalidRep(f'should be 96 pts with order 32, there are {n32}')
 
 
 if __name__ == '__main__':
@@ -236,6 +293,7 @@ if __name__ == '__main__':
         fil = 'oct_monoid.csv'
         print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
         data = row_monoid(octos)
+        is_group_rep_valid(data.monoid_table, rep_Q128)
     else:
         fil = 'rps_monoid.csv'
         print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
@@ -248,3 +306,39 @@ if __name__ == '__main__':
     print('\n\nmapping: \n')
     pprint(data.row_map)
           
+'''
+def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
+    # only well defined for power-assoc magmas:
+    assert k > 0, "undef for generic magma"
+    if check:
+        assert left_power_assoc_hlpr(i, i, a, pwr)
+    if pwr == 1:
+        return i
+    return pos_pow_hlpr(i, i, a, pwr - 1)
+
+def magma_pow(i:int, pwr:int, a:NDArray[int],
+              left:bool = True, check:bool = False) -> int:
+    return left_magma_pow(i, pwr, a if left else a.T, check)[0]
+
+def group_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
+    if check:
+        assert is_group(a)
+    # also works for a power associative magma
+    if pwr < 0:
+        i = a[i].argmin() # 0 is always ident here; finds the inverse
+        pwr = abs(pwr)
+    if not pwr:
+        return 0
+    return left_magma_pow(i, pwr, a, check = False)
+
+
+it seems like for a one-generator abelian group <a|..>, we should
+be able to form a monoid just knowing information about a*a...
+
+
+def ring_extension(a: NDArray[int]) -> NDArray[int]:
+    if not is_abelian(a) or not is_group(a):
+        return None
+    m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
+
+'''
