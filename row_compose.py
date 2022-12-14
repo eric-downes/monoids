@@ -213,13 +213,56 @@ def is_loop(a: NDArray[int]) -> bool:
 def is_group(a: NDArray[int]) -> bool:
     return is_loop(a) and is_associative(a)
 
-def ring_extension(a: NDArray[int]) -> NDArray[int]:
-    if not is_abelian(a) or not is_group(a):
-        return None
-    m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
-    
-    
+def left_power_assoc_hlpr(i:int, i_to_nmk:int, a:NDArray[int], k:int) -> bool:
+    if not k:
+        return True
+    if a[(i_to_1pnmk := a[i_to_nmk, i]), i] != a[i_to_nmk, a[i, i]]:
+        return False
+    return pahlpr(i, i_to_1pnmk, a, k - 1)
 
+def is_left_power_assoc_upto(a: NDArray[int], pwr: int = 3) -> bool:
+    # rewrite using @ft.lru_cache to be more efficient
+    assert pwr >= 0
+    for i in range(len(a)):
+        if not left_pwr_assoc_hlpr(i, i, a, pwr):
+            return False
+    return True
+
+def pos_pow_hlpr(i:int, i_to_nmk:int, a:NDArray[int], k:int
+                 orbit:list[int] = []) -> int:
+    if not k: return i_to_nmk
+    return pos_pow_hlpr(i, a[i_to_nmk, i], a, k - 1, orbit + [i_to_nmk])
+
+def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
+    # only well defined for power-assoc magmas:
+    assert k > 0, "undef for generic magma"
+    if check:
+        assert left_power_assoc_hlpr(i, i, a, pwr)
+    if pwr == 1: return i
+    return pos_pow_hlpr(i, i, a, pwr - 1)[0]
+
+def magma_pow(i:int, pwr:int, a:NDArray[int],
+              left:bool = True, check:bool = False) -> int:
+    return left_magma_pow(i, pwr, a if left else a.T, check)
+
+def group_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
+    if check:
+        assert is_group(a)
+    # also works for a power associative magma
+    if pwr < 0:
+        i = a[i].argmin() # 0 is always ident here; finds the inverse
+        pwr = abs(pwr)
+    if not pwr: return 0
+    return left_magma_pow(i, pwr, a, check = False)
+
+def orbit()
+
+Representation = Sequence[Callable[[int,...], bool]]
+
+def is_rep_valid(rep:Representation, a:NDArray[int]) -> bool:
+    assert is_group(a)
+    for f in rep:
+        
 
 
 if __name__ == '__main__':
@@ -250,3 +293,15 @@ if __name__ == '__main__':
     print('\n\nmapping: \n')
     pprint(data.row_map)
           
+'''
+
+it seems like for a one-generator abelian group <a|..>, we should
+be able to form a monoid just knowing information about a*a...
+
+
+def ring_extension(a: NDArray[int]) -> NDArray[int]:
+    if not is_abelian(a) or not is_group(a):
+        return None
+    m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
+
+'''
