@@ -186,7 +186,13 @@ def is_right_cancellative(a: NDArray[int]) -> bool:
     return is_left_cancellative(a.T)
 
 def is_latin_square(a: NDArray[int]) -> bool:
-    return is_left_cancellative(a) and is_right_cancellative(a)
+    try:
+        assert is_left_cancellative(a), 'not l cancel'
+        assert is_right_cancellative(a), 'not r cancel'
+        return True
+    except AssertionError as e:
+        print(e)
+        return False
 is_cancellative = is_latin_square
 has_inverses = is_latin_square
 
@@ -276,7 +282,52 @@ def rep_Q128(a: NDArray[int]) -> None:
     if n32 != 96:
         raise InvalidRep(f'should be 96 pts with order 32, there are {n32}')
 
+def commutators(a: NDArray[int]) -> list[set[int]]:
+    assert is_group(a)
+    # depends on the group identity being given index 0...
+    comms = []
+    for i, row in enumerate(a):
+        # ij/(ji)
+        c = set()
+        for j, ij in enumerate(row):
+            c.add(G[ij, G[G[j,i]].argmin()])
+        comms.append(c)
+    return comms
 
+def magma_section(a:NDArray[int], subset:Iterator[int]
+                  ) -> tuple[NDArray[int], list[int], bool]:
+    elems = sorted(subset)
+    assert max(elems) < min(a.shape)
+    a = a[elems].T[elems].T
+    for i,e in enumerate(elems):
+        a[a==e] = i
+    return a, elems, 0 <= a.min() and a.max() < len(elems)
+
+def quotient(g:NDArray[int], helems:set[int]
+             ) -> tuple[NDArray[int], list[int]]:
+    # implicitly assuming <h> is a group...
+    assert not (qord := divmod(gord := len(g), len(helems)))[1]
+    hmap = list(helems)
+    assert is_abelian(g[hmap].T[hmap].T)
+    assert is_group(g)
+    gi_to_qi = {c:0 for c in helems}
+    qmap = [0]
+    for i in range(gord):
+        if i not in gi_to_qi:
+            coset = set(g[i, hmap])
+            gi_to_qi |= {c:len(qmap) for c in coset}
+            qmap.append(min(coset))
+    lol = []
+    for equiv in qmap:
+        lol.append([gi_to_qi[e] for e in g[equiv, qmap]])
+    return np.array(lol), qmap
+
+def cyclic_group(n:int) -> NDArray[int]:
+    lol = [list(range(n))]
+    for _ in range(n - 1):
+        lol.append( lol[-1][1:] + lol[-1][0:1] )
+    return np.array(lol)
+    
 if __name__ == '__main__':
 
     if '--octonions' in sys.argv:
