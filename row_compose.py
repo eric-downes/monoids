@@ -229,15 +229,15 @@ def is_left_power_assoc_upto(a: NDArray[int], pwr: int = 3) -> bool:
             return False
     return True
 
-def group_orbit(i:int, a:NDArray[int], maxn:int = None) -> list[int]:
+@ft.lru_cache
+def group_orbit(i:int, a:NDArray[int]) -> list[int]:
     j = i
     orb = [i]
     seen = set(orb)
-    if maxn is None: maxn = len(a)
-    for _ in range(maxn):
+    for _ in range(len(a)):
         j = a[j,i]
         if j in seen: break
-        else: seen.add(j)
+        seen.add(j)
         orb.append(j)
     return orb
 
@@ -251,36 +251,65 @@ def group_pow(i:int, pwr:int, a:NDArray[int]) -> int:
     orb = group_orbit(i, a, pwr - 1)
     return orb[(pwr - 1) % len(orb)]
 
-class InvalidRep(ValueError):
+class InvalidPres(ValueError):
     pass
 
-def is_group_rep_valid(a: NDArray[int], rep:Callable[NDArray[int],None]) -> bool:
+def is_group_pres_valid(a: NDArray[int], pres:Callable[NDArray[int],None]) -> bool:
     try:
         if not is_group(a):
-            raise InvalidRep('not a group')
-        rep(a)
+            raise InvalidPres('not a group')
+        pres(a)
         return True
-    except InvalidRep as e:
+    except InvalidPres as e:
         print(e)
         return False
 
-def rep_Q128(a: NDArray[int]) -> None:
+
+        
+        
+        
+    
+def pres_xtraspec128(G: NDArray[int]) -> None:
+    # < a..f |
+    # a^2 = b^2 = (ab)^2 = c^2 = d^2 = (cd)^2 = (ef)^2
+    # e^2 = f^2 = 1
+    # ac = ca, ad = da, bc = cb, bd = db,
+    # ae = ea, be = eb, ce = ec, de = ed,
+    # af = fa, bf = fb, cf = fc, df = fd >
+    for atof in combinations(range(len(G)),6):
+        if 
+    for a in range(len(G)):
+        aorb = group_orbit(a, G)
+        asq = G[a,a]
+        for b in set(range(len(G))) - set(aorb):
+            borb = group_orbit(b, G)
+            bsq = G[b,b]
+            ab = G[a,b]
+            if asq != bsq:
+                raise InvalidPres(f'a^2 != b^2; a={a}, b={b}')
+            if asq != G[ab,ab]:
+                raise InvalidPres(f'a^2 != (ab)^2; a={a}, ab={ab}')
+            
+            
+            
+    
+def pres_Q128(a: NDArray[int]) -> None:
     # < x, y | x^64 = 1, y^2 = x^32, xyx = y >
     if (order := len(a)) != 128:
-        raise InvalidRep(f'group order {order} != 128')
+        raise InvalidPres(f'group order {order} != 128')
     n32 = 0
     for i in range(1, len(a)): # assumes ident at 0
         iorb = group_orbit(i, a)
         n32 += (order := len(iorb)) == 32
         if order > 64:
-            raise InvalidRep(f'{i} has order {order} > 64')
+            raise InvalidPres(f'{i} has order {order} > 64')
         for j in set(range(len(a))) - set(iorb):
             if a[ a[i,j], i] != j:
-                raise InvalidRep(f'xyx != y for x,y = {i},{j}')
+                raise InvalidPres(f'xyx != y for x,y = {i},{j}')
             if a[j,j] != iorb[(32 - 1) % len(iorb)]:
-                raise InvalidRep(f'y^2 != x^32 for x,y = {i},{j}')
+                raise InvalidPres(f'y^2 != x^32 for x,y = {i},{j}')
     if n32 != 96:
-        raise InvalidRep(f'should be 96 pts with order 32, there are {n32}')
+        raise InvalidPres(f'should be 96 pts with order 32, there are {n32}')
 
 def commutators(a: NDArray[int]) -> list[set[int]]:
     assert is_group(a)
