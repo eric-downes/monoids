@@ -2,7 +2,6 @@ from presentations import *
 from monoids import *
 
 if __name__ == '__main__':
-
     if '--octonions' in sys.argv:
         # https://en.wikipedia.org/wiki/Octonion#Definition # with -e_0 -> 8
         octos = adjoin_negatives(
@@ -18,7 +17,7 @@ if __name__ == '__main__':
         print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
         data = row_monoid(octos)
         is_group_pres_valid(data.monoid_table, pres_Q128)
-        is_group_pres_valid(data.monoid_table, pres_xtraspec_128)
+        is_group_pres_valid(data.monoid_table, pres_xtraspec_128, verbose = True)
     else:
         fil = 'rps_monoid.csv'
         print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
