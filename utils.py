@@ -1,11 +1,15 @@
 from typing import TypeVar, Callable, Iterator
 from dataclasses import dataclass
 from hashlib import blake2b
+from typing import *
 
 from numpy.typing import NDArray
 from pprint import pprint
 import pandas as pd
 import numpy as np
+
+T = TypeVar('T')
+DoK = dict[tuple[T, T], T]
 
 class Applicator:
     def __init__(self, fcn : Callable[[NDArray[T], int, int], NDArray[T]]):

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from monoids import *
 
 class InvalidPres(ValueError):
@@ -18,7 +19,7 @@ class GrpGen:
         return GrpGen(self.family, g, f'{self.name}.{other.name}', cmap, False)
     def __repr__(self) -> str:
         grp = self.family.G
-        return f'{self} in Group({id(grp}) of order {len(grp)}'
+        return f'{self} in Group({id(grp)}) of order {len(grp)}'
     def __str__(self) -> str:
         return f'{self.name}({self.g})'
     def __eq__(self, other:int|GrpGen) -> bool:

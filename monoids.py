@@ -29,9 +29,9 @@ def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
     if (rhas * chas).any():
         return a
     a = np.where(a < 0, a - 1, a + 1) 
-    a = np.vstack((rone, a))
+    a = np.vstack((rone.reshape((1, a.shape[1])), a))
     cone = np.arange(a.shape[0])
-    return np.hstack((cone, a))
+    return np.hstack((cone.reshape((a.shape[0], 1)), a))
     
 def adjoin_negatives(a: NDArray[int]) -> NDArray[int]:
     # so we can handle octonions
