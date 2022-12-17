@@ -1,6 +1,41 @@
-# Magmas inside Monoids Paper
+# Magmas inside Monoids
 
 "It's Monoids, Monoids All the Way Down." -- Ancient Babylonian Saying
+
+## Running with pre-existing python 3.10+
+
+If you have python3.10 installed, you can run
+
+```
+python3 -m pip install -r requirements.txt
+python3 demo.py
+```
+
+This shows the construction of an (unidentified)
+21-element transition monoid for the "Rock-Paper-Scissors" magma.
+
+If you want to see progress on verifying the transition group of the
+octonions (warning, slow):
+
+```
+python3 demo.py --octonions
+```
+
+## Upgrading to newer python
+
+If you don't have that version of python, I recommend the following to
+keep your setup easy-to-maintain.  (It allows you to have many
+versions of python installed and switch between them as needed.)
+
+1. Install [pyenv](https://github.com/pyenv/pyenv)
+1. `pyenv install 3.11.0`; 3.11 60% faster than previous versions
+1. `pyenv shell 3.11.0`; makes your current shell use that python version
+1. `which python3` should show something with "shims" in it
+1. `python3 --version`; should show 3.11
+1. `python3 -m pip install -r requirements.txt`
+1. `python3 demo.py` quick RPS-magma demo
+1. `python3 demo.py --octonions` sit back and watch it compute!
+
 
 ## Rough Draft
 
