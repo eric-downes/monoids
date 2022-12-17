@@ -2,7 +2,8 @@
 
 "It's Monoids, Monoids All the Way Down." -- Ancient Babylonian Saying
 
-A broad overview of where this could lead [notion](https://github.com/naftaliharris/Abstract-Algebra)
+A broad overview of where this could lead [notion](https://proximal-vise-0cf.notion.site/Proj-Space-of-an-octonion-adjoint-group-303cb631e83b4315a2a74f1bca34889f)
+
 
 ## Running with pre-existing python 3.10+
 
