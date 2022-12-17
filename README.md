@@ -2,6 +2,8 @@
 
 "It's Monoids, Monoids All the Way Down." -- Ancient Babylonian Saying
 
+A broad overview of where this could lead [notion](https://github.com/naftaliharris/Abstract-Algebra)
+
 ## Running with pre-existing python 3.10+
 
 If you have python3.10 installed, you can run
