@@ -125,26 +125,17 @@ def is_group(a: NDArray[int]) -> bool:
     return is_loop(a) and is_associative(a)
 
 @lru_cache
-def group_orbit(i:int, a:NDArray[int]) -> list[int]:
+def _orbit(i:int, ai:tuple[int]) -> set[int]:
     j = i
-    orb = [i]
-    seen = set(orb)
-    for _ in range(len(a)):
-        j = a[j,i]
+    seen = {i:None}
+    for _ in range(len(ai)):
+        j = ai[j]
         if j in seen: break
-        seen.add(j)
-        orb.append(j)
-    return orb
+        seen[j] = None
+    return seen.keys()
 
-def group_pow(i:int, pwr:int, a:NDArray[int]) -> int:
-    assert is_group(a)
-    if pwr == 0: return 0
-    if pwr == 1: return i
-    if pwr < 0:
-        i = a[i].argmin()
-        pwr = abs(pwr)
-    orb = group_orbit(i, a, pwr - 1)
-    return orb[(pwr - 1) % len(orb)]
+def group_orbit(i:int, a:NDArray[int], outyp:type = list) -> Sequence[int]:
+    return outyp(_orbit(i, tuple(a[i])))
 
 def commutators(a: NDArray[int]) -> list[set[int]]:
     assert is_group(a)

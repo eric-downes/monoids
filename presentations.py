@@ -1,4 +1,8 @@
 from __future__ import annotations
+from itertools import combinations
+import string
+import math
+
 from monoids import *
 
 class InvalidPres(ValueError):
@@ -12,9 +16,9 @@ class GrpGen:
     excluded: ChainMap[set]
     adopted: bool
     def __mul__(self, other:GrpGen) -> GrpGen:
-        assert (G := self.family.G) == other.family.G
-        g = self.family.G[self.g, other.g],
-        cmap = ChainMap(set(group_orbit(g, G)),
+        assert id(G := self.family.G) == id(other.family.G)
+        g = self.family.G[self.g, other.g]
+        cmap = ChainMap(group_orbit(g, G, set),
                         self.excluded.parents, other.excluded.parents)
         return GrpGen(self.family, g, f'{self.name}.{other.name}', cmap, False)
     def __repr__(self) -> str:
@@ -24,7 +28,7 @@ class GrpGen:
         return f'{self.name}({self.g})'
     def __eq__(self, other:int|GrpGen) -> bool:
         if isinstance(other, GrpGen):
-            return self.family.G == other.family.G and self.g == other.g
+            return id(self.family.G) == id(other.family.G) and self.g == other.g
         elif isinstance(other, int):
             return self.g == other
 
@@ -41,10 +45,10 @@ class GrpGenFambly:
     @classmethod
     def _create_names(cls, rank:int, symbols:str = None) -> list[str]:
         if symbols is None:
-            symbols = string.lower_ascii
+            symbols = string.ascii_lowercase
         names = ['1']
-        for i, name in enumerate(combinations_with_replacement(
-                symbols, 1 + math.log(rank) // math.log(len(symbols)))):
+        for i, name in enumerate(combinations(
+                symbols, 1 + math.floor(math.log(rank) // math.log(len(symbols))) )):
             names.append(name)
             if i == rank:
                 return names
@@ -68,7 +72,7 @@ class GrpGenFambly:
     def _adopt_child(self, g:int) -> None:
         assert len(self.stack) - 1 < self.rank
         name = self.namespace[len(self.stack)]
-        cmap = ChainMap(set(group_orbit(g, self.G)), self._youngest().excluded)
+        cmap = ChainMap(group_orbit(g, self.G, set), self._youngest().excluded)
         self.stack.append(GrpGen(self, g, name, cmap, True))
     def _disown_child(self) -> GrpGen:
         return self.stack.pop()
@@ -123,7 +127,7 @@ def pres_xtraspec_128(G: NDArray[int]) -> None:
             comm_hlpr(x, y)
 
 def sq_hlpr(lhs:GrpGen, x:GrpGen) -> None:
-    if lhs != x * x:
+    if lhs != (xsq := x * x):
         InvalidPres(f'sq_hlpr: {lhs} != {xsq}')
 
 def comm_hlpr(x:GrpGen, y:GrpGen) -> None:

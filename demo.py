@@ -17,7 +17,8 @@ if __name__ == '__main__':
         fil = 'oct_monoid.csv'
         print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
         data = row_monoid(octos)
-        is_group_rep_valid(data.monoid_table, rep_Q128)
+        is_group_pres_valid(data.monoid_table, pres_Q128)
+        is_group_pres_valid(data.monoid_table, pres_xtraspec_128)
     else:
         fil = 'rps_monoid.csv'
         print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')

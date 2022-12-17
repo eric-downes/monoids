@@ -46,7 +46,7 @@ def is_bijection(row: NDArray[int]) -> bool:
     return set(row) == set(range(len(row)))
 
 def is_left_cancellative(a: NDArray[int]) -> bool:
-    return DataFrame(a).apply(is_bijection, axis = 1).prod()
+    return pd.DataFrame(a).apply(is_bijection, axis = 1).prod()
 
 def is_right_cancellative(a: NDArray[int]) -> bool:
     return is_left_cancellative(a.T)
