@@ -86,6 +86,28 @@ def is_left_power_assoc_upto(a: NDArray[int], pwr: int = 3) -> bool:
             return False
     return True
 
+def invert(bij:Sequence[int]) -> pd.Series:
+    ser = pd.Series(bij, name = 'vals').reset_index().set_index('vals')
+    return ser.sort_index()['index']
+
+def submagma(G:NDArray[int],
+             gens:list[int],
+             elements_only:bool = False) -> tuple[NDArray[int], list[int]]:
+    assert is_magma(G)
+    helems = list(set(gens))
+    orderH = 0
+    H = G[helems].T[helems].T
+    helems = list(set(H.ravel()))
+    while orderH - (orderH := len(helems)):
+        helems = list(set((H := G[helems].T[helems].T).ravel()))
+    if elements_only or orderH == len(G):
+        return H, helems
+    gi_to_hi = invert(helems)
+    return np.array([gi_to_hi[row] for row in H]), helems
+
+
+
+
 
 def fingerprint(x):
     return hash(tuple(x))

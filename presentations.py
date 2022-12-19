@@ -15,22 +15,7 @@ class GrpGen:
     name: str
     excluded: ChainMap[set]
     adopted: bool
-    def __mul__(self, other:GrpGen) -> GrpGen:
-        assert id(G := self.family.G) == id(other.family.G)
-        g = self.family.G[self.g, other.g]
-        cmap = ChainMap(group_orbit(g, G, set),
-                        self.excluded.parents, other.excluded.parents)
-        return GrpGen(self.family, g, f'{self.name}.{other.name}', cmap, False)
-    def __repr__(self) -> str:
-        grp = self.family.G
-        return f'{self} in Group({id(grp)}) of order {len(grp)}'
-    def __str__(self) -> str:
-        return f'{self.name}({self.g})'
-    def __eq__(self, other:int|GrpGen) -> bool:
-        if isinstance(other, GrpGen):
-            return id(self.family.G) == id(other.family.G) and self.g == other.g
-        elif isinstance(other, int):
-            return self.g == other
+
 
 class GrpGenFambly:
     def __init__(self, grp:NDArray[int], rank:int,
@@ -66,13 +51,15 @@ class GrpGenFambly:
             saved = self.sig()
             self.passed.add(self.sig())
             self.stack.pop()
-    def sig(self, g:int = None):
-        s = tuple(x.g for x in self.stack)
+    def sig(self, g:int = None, k:int = None):
+        if k is None: k = len(self.stack)
+        s = tuple(x.g for x in self.stack[:k])
         if g is not None: s = s + (g,)
         return s
-    def _excluded(self, g:int) -> bool:
-        return g in self.stack[-1].excluded or \
-            self.sig(g) in self.passed
+    def _excluded(self, g:int, k:int = None) -> bool:
+        if k is None: k = len(self.stack) - 1
+        return g in self.stack[k].excluded or \
+            self.sig(g, k + 1) in self.passed
     def _adoption_search(self) -> bool:
         val = self.rank + 1 - len(self.stack)
         if not val:
@@ -127,15 +114,62 @@ def pres_Q128(a: NDArray[int], verbose:bool = False) -> None:
     if n32 != 96:
         raise InvalidPres(f'should be 96 pts with order 32, there are {n32}')
 
+def subgrp_o4_hlpr(G:NDArray[int],
+                   ord4_pts:set[int],
+                   helems:set[int] = None,
+                   sqeq:int = None) -> set[int]:
+    if helems is None: helems = set()
+    else: ord4_pts -= helems
+    while ord4_pts:
+        a = ord4_pts.pop()
+        asq = G[a,a]
+        if sqeq is not None and sqeq != asq:
+            continue 
+        for b in ord4_pts:
+            if G[b,b] == asq and G[ab := G[a,b], ab] == asq:
+                break
+        else: continue
+        ord4_pts.drop(b)
+        helems |= {0, a, b, G[a].argmin(), G[b].argmin()}
+        helems.update(
+            submagma(G, sorted(helems), elements_only = True)[1])
+        ord4_pts -= helems
+        return helems
+    raise InvalidRep('exhausted pts of order 4')
+
+with gens in GrpGenFambly(G, 6).generators():
+    i,a,b,c,d,e,f = gens
+    
+helems = subgrp_o4_hlpr(G, ord4_pts) #<a,b>
+subgrp_o4_hlpr(G, ord4_pts, helems) #<a,b,c,d>
+
+
+    
+    
 def pres_xtraspec_128(G: NDArray[int], verbose:bool = False) -> None:
     # < a,b,c,d,e,f |
-    #    a^2 = b^2 = (ab)^2 = c^2 = d^2 = (cd)^2 = (ef)^2
-    #    e^2 = f^2 = 1
-    #    ac = ca, ad = da, bc = cb, bd = db, ae = ea, be = eb
-    #    ce = ec, de = ed, af = fa, bf = fb, cf = fc, df = fd >
-    for gens in GrpGenFambly(G, 6).generators():
-        ident, a, b, c, d, e, f = gens
-        asq = a * a
+    #     a^2 = b^2 = (ab)^2 = c^2 = d^2 = (cd)^2 = (ef)^2
+    #     e^2 = f^2 = 1
+    #     ac = ca, ad = da, bc = cb, bd = db, ae = ea, be = eb
+    #     ce = ec, de = ed, af = fa, bf = fb, cf = fc, df = fd >
+    for g in GrpGenFambly(G, 6).generators():
+        asq = g[1].pow(2)
+        try: 
+            for sqeq, i, j in [(asq,1,2), (asq,3,4), (0,5,6)]:
+                if g[i].pow(2) != sqeq or g.mul([i, j, i, j]) != sqeq: 
+                    IncrementFromHere()
+        except IncrementFromHere as e:
+            g.next_iter(i)
+            
+        g[2].excluded.update(
+            dict.fromkeys(submagma(G, {0,1,2}, no_alias = True)[1]))        
+
+        
+        if c in b.excluded:
+            c, 
+        
+        
+        if 
         for x in (b, c, d):
             sq_hlpr(asq, x)
         for x in (e, f):
@@ -147,9 +181,14 @@ def pres_xtraspec_128(G: NDArray[int], verbose:bool = False) -> None:
                      (a,e), (b,e), (c,e), (d,e),
                      (a,f), (b,f), (c,f), (d,f)]:
             comm_hlpr(x, y)
-        if verbose:
+        if set(gens) == set(submagma(G, gens, no_alias=True)):
             s = ', '.join([str(g) for g in gens])
             print(f'XtraSpec128 passed with {s}')
+            return True
+        else:
+            print('WARNING')
+            
+             == submagma(G, (ident,a,b,c,d,e,f))
 
 def sq_hlpr(lhs:GrpGen, x:GrpGen) -> None:
     if lhs != (xsq := x * x):
