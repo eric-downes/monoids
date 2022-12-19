@@ -96,6 +96,8 @@ def submagma(G:NDArray[int],
     assert is_magma(G)
     helems = list(set(gens))
     orderH = 0
+    H = G[helems].T[helems].T
+    helems = list(set(H.ravel()))
     while orderH - (orderH := len(helems)):
         helems = list(set((H := G[helems].T[helems].T).ravel()))
     if elements_only or orderH == len(G):
