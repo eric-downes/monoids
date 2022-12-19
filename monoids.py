@@ -52,6 +52,23 @@ def double_rows(a : NDArray[T]) -> NDArray[T]:
     delta.fill(np.iinfo(a.dtype).max)
     return np.vstack((a, delta))
 
+def submagma(G:NDArray[int],
+             gens:list[int],
+             elements_only:bool = False) -> tuple[NDArray[int], list[int]]:
+    assert is_magma(G)
+    helems = list(set(gens))
+    orderH = 0
+    while orderH - (orderH := len(helems)):
+        helems = list(set((H := G[helems].T[helems].T).ravel()))
+    if elements_only or orderH == len(G):
+        return H, helems
+    gi_to_hi = invert(helems)
+    return np.array([gi_to_hi[row] for row in H]), helems
+
+def invert(bij:Sequence[int]) -> pd.Series:
+    ser = pd.Series(bij, name = 'vals').reset_index().set_index('vals')
+    return ser.sort_index()['index']
+
 def compose_and_record(a: NDArray[int],
                        i: int,
                        j: int,

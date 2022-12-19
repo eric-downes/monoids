@@ -1,3 +1,268 @@
+'''
+context manager
+ - accepts tests: list[Callable[[int,...],bool]]
+   list and args are same len == rank
+   
+   
+ - catches NextIter(i) exception
+
+
+ 
+def fails_xsp128_o4_template(G, gs:list[int], i:int, j:int,
+                             kk:int, ijij:int) -> tuple[bool,set[int]]:
+    for k in (i,j):
+        if G[gs[k], gs[k]] != kk:
+            return {k}
+    ij = G[gs[i], gs[j]]
+    if G[ij, ij] != ijij:
+        return {i,j}
+    return set()
+
+xsp128_fails = [lambda *args: 
+    partial(fails_xsp128_o4_template, i = 1, j = 2
+'''
+
+DEFAULT_ALPHABET = '1abcdfghmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+
+orbits = {}
+orders = {}
+for g in range(len(G)):
+    orb = orbit(g,G)
+    orbits[g] = orb
+    orders.setdefault(len(orb), set()).add(g)
+young = {k:len(v) for k, v in orders.items()}
+
+young_ok(pres, young)
+
+Symbol = str|int
+
+class AbstractGroup:
+    def __call__(self, x:Symbol, Symbol): pass
+    @lru_cache
+    def orbit(self, x:Symbol) -> Symbol:
+        orb = dict.fromkeys([y0 := self.identity])
+        while y := self(x, y0) not in orb:
+            orb[y] = None
+            y0 = y
+        return list(orb)
+    def pow(self, x:Symbol, n:Symbol) -> Symbol:
+        orb = self.orbit(x, self)
+        return orb[n % len(orb]]
+                   
+class ConcreteGroup(AbstractGroup):
+    def __init__(self, table:NDArray[int]):
+        assert is_group(table)
+        self.table = table
+        self.identity = 0
+        self.order = len(self.table)
+    def __call__(self, x:int, y:int) -> int:
+        return self.table[x,y]
+
+Group = ConcreteGroup
+Name = str
+Assertion = Callable[[int,...], None] # raises
+SafeAssertion = Assertion
+
+GrpElem = str|int
+
+@dataclass
+class Symbol:
+    context: TestingContext
+    name: Name
+    value: GrpElem
+    def __mul__(self, other:GrpGen) -> GrpGen:
+        return Symbol(self.context,
+                      f'{self.name}.{other.name}',
+                      G(self.value, other.value))
+    def __repr__(self) -> str:
+        grp = self.context.group
+        return f'{self} in Group({grp.name}) of order {grp.order()}'
+    def __str__(self) -> str:
+        return f'{self.name}({self.value})'
+    def __eq__(self, other:int|Symbol) -> bool:
+        if isinstance(other, Symbol):
+            return self.context == other.context and self.value == other.value
+
+
+        
+class Presentation:
+    def __init__(self,
+                 group_order:int,
+                 orders:tuple[int,...]
+                 ranked_assertions:list[Assertion],
+                 alphabet:str = DEFAULT_ALPHABET):
+        rank = len(orders)
+        assert 0 < rank == len(ranked_assertions) <= len(alphabet)
+        assert all([r > 1 for r in orders])
+        self.namespace = alphabet[:rank]
+        self.orders = orders
+        self.tests : dict[str, list[SafeAssertion]] = {}
+        for n, a, fs in enumerate(zip(alphabet, ranked_assertions)):
+            self.tests[a] = [self.wrap(partial(assert_pt_order_n, n = n))]
+            for f in fs:
+                self.tests[a].append(f)
+    @property
+    def order(self, name:Name) -> int:
+        return self.orders[name]
+    def test_series(self, series:GroupGeneratorSeries, group:Group, start:int = 0) -> bool:
+        context = TestingContext(self, series)
+        for name, gen in zip(self.namespace[start:], series.stack[start:]):
+            for test in self.tests[name]:
+                try: test(gen, group)
+                except (AssertionError, InvalidPres) as exc:
+                    print(f'FAIL Test {test} with {symbol} raised: {exc}')
+                    return False
+
+def assert_pt_n_eq(x:Symbol, n:int, pwreq:Symbol, g:Group) -> None:
+    assert g.pow(x, n) == pwreq, f'pt {x}^{n} != {pwreq} in {g}'
+
+def assert_pt_order_n(x:Symbol, n:int, g:Group) -> None:
+    assert g.order(x) == n, f'{x} not of order {n} in {g}'
+
+def assert_pts_conj_eq(x:Symbol, y:Symbol, c:Symbol, g:Group) -> None:
+    assert g(x, y) == g(y, c), f'{x}{y} != {y}{c} in {g}'
+        
+    data: pd.DataFrame # index: names; cols: order(int), tests(callable)
+        
+
+@dataclass
+class TestingContext:
+    series: GeneratorSeries
+    presentation: Presentation
+    
+class GroupGenerator:
+    def __init__(self, group: NDArray[int], value:int,
+                 name:str = '', context:TestingContext = None):
+        assert is_group(group)
+        assert self.value < len(group)
+        self.group = group
+        self.value = value
+        if name and context:
+            assert context.presentation.data.order[name] == self.order
+            assert self.value not in context.series.excluded[name]
+            assert self.group == context.series.group
+        self.name = name
+        self.context = context
+    @property
+    def orbit(self) -> list[int]:
+        return self.group.orbit(self.value, self.group)
+    @property
+    def order(self) -> int:
+        return len(self.orbit)
+    
+class GroupGeneratorSeries:
+    def __init_(self):
+        self.pres: GroupPresentation
+        self.group: GroupLaw
+        self.stack = [GroupGenerator(self)]
+    def items(self) -> Iterator[tuple[str,int]]:
+        for gen in self.stack:
+            yield gen.name, gen.value
+    def evaluate(self, name:str, value:int) -> bool:
+        d = {nam:val for nam, val in self.items()}
+        assert name not in d
+        d[name] = val
+        return self.pres.test_series(d, self.group)
+    def recurse(self,
+                gen: GroupGenerator|None,
+                group: Binop[[int,int],int],
+                pres: GroupPresentation):
+        gen = self.child(pres):
+        if gen is not None:
+            return True
+        for g in group.young[gen.order]:
+            if self.excludes(g) or pres.fail_tests(g, group):
+            continue
+        series.adopt(g, group)
+        if self.recurse(gen.next(), group, pres):
+            return True
+        gen.disown()
+    return False
+
+
+
+
+        for g in range(self.stack[-1].g + 1, len(self.G)):
+            if self._excluded(g): continue
+            self._adopt_child(g)
+            if self._adoption_search():
+                return True
+            self._disown_child()
+        return False
+
+for generator in sorted(pres.generators,
+                        key = lambda x:x.order,
+                        reverse = True):
+
+    generator.adopt() # assign value consistent with prev info
+    if not generator.evaluate(): # run tests with that subrank
+        generator.disown() # 
+    
+
+
+    data.append([len(orb), orb, 
+    orbits.setdefault(order := len(orb), {}).update({g: orb})
+young = {order:len(elements) for order, elements 
+orbits = [
+young = pd.DataFrame()
+young['count'] = pd.Series(map(len, orbits)).value_counts().sort_index()
+young.index.name = 'order'
+
+if pres_young and pres_young != young:
+    raise InvalidPres()
+if (pres_orders.value_counts().loc[young.index] < young).any():
+    raise InvalidPres()
+for order, pts
+pt_classes = pd.DataFrame(young)
+
+
+
+
+
+Gen = int
+Gens = tuple[int,...]
+Index = int
+Test = Callable[[Gens], tuple[Index,...]]
+def wrap_test(f:Test, x:Exception):
+    res = f(gens)
+    if res: raise x(res)
+    else: return True
+    
+
+rank = len(G)
+for gens in permutations(range(1, rank + 1), rank):
+    for passing_test in tests:
+        if not passing_test(G, gens): break
+    else:
+        if G == submagma(G, gens)[0]:
+            return True
+return False
+
+def test_orbits(G, gens, orders) -> bool:
+    excluded = set()
+    for g in gens:
+        if g in excluded: return False
+        orb = orbit(g, G)
+        if len(orb) != o: return False
+        excluded.update(
+            subgroup(G, excluded)[1])
+        
+        
+    orbits = [orbit(g, G) for g in gens]
+    
+    if list(map(len, orbits)) != orders:
+        return False
+    
+def basic_test(G, gens, orders) -> bool:
+
+    subgens = []
+    for i,g in enumerate(gens):
+        subgens = append(
+        subgroup(G, gens)
+        
+        orbits.append(orbit(i, G))
+
+
 from __future__ import annotations
 from itertools import combinations
 import string
@@ -15,22 +280,7 @@ class GrpGen:
     name: str
     excluded: ChainMap[set]
     adopted: bool
-    def __mul__(self, other:GrpGen) -> GrpGen:
-        assert id(G := self.family.G) == id(other.family.G)
-        g = self.family.G[self.g, other.g]
-        cmap = ChainMap(group_orbit(g, G, set),
-                        self.excluded.parents, other.excluded.parents)
-        return GrpGen(self.family, g, f'{self.name}.{other.name}', cmap, False)
-    def __repr__(self) -> str:
-        grp = self.family.G
-        return f'{self} in Group({id(grp)}) of order {len(grp)}'
-    def __str__(self) -> str:
-        return f'{self.name}({self.g})'
-    def __eq__(self, other:int|GrpGen) -> bool:
-        if isinstance(other, GrpGen):
-            return id(self.family.G) == id(other.family.G) and self.g == other.g
-        elif isinstance(other, int):
-            return self.g == other
+
 
 class GrpGenFambly:
     def __init__(self, grp:NDArray[int], rank:int,
@@ -66,13 +316,15 @@ class GrpGenFambly:
             saved = self.sig()
             self.passed.add(self.sig())
             self.stack.pop()
-    def sig(self, g:int = None):
-        s = tuple(x.g for x in self.stack)
+    def sig(self, g:int = None, k:int = None):
+        if k is None: k = len(self.stack)
+        s = tuple(x.g for x in self.stack[:k])
         if g is not None: s = s + (g,)
         return s
-    def _excluded(self, g:int) -> bool:
-        return g in self.stack[-1].excluded or \
-            self.sig(g) in self.passed
+    def _excluded(self, g:int, k:int = None) -> bool:
+        if k is None: k = len(self.stack) - 1
+        return g in self.stack[k].excluded or \
+            self.sig(g, k + 1) in self.passed
     def _adoption_search(self) -> bool:
         val = self.rank + 1 - len(self.stack)
         if not val:
@@ -127,15 +379,62 @@ def pres_Q128(a: NDArray[int], verbose:bool = False) -> None:
     if n32 != 96:
         raise InvalidPres(f'should be 96 pts with order 32, there are {n32}')
 
+def subgrp_o4_hlpr(G:NDArray[int],
+                   ord4_pts:set[int],
+                   helems:set[int] = None,
+                   sqeq:int = None) -> set[int]:
+    if helems is None: helems = set()
+    else: ord4_pts -= helems
+    while ord4_pts:
+        a = ord4_pts.pop()
+        asq = G[a,a]
+        if sqeq is not None and sqeq != asq:
+            continue 
+        for b in ord4_pts:
+            if G[b,b] == asq and G[ab := G[a,b], ab] == asq:
+                break
+        else: continue
+        ord4_pts.drop(b)
+        helems |= {0, a, b, G[a].argmin(), G[b].argmin()}
+        helems.update(
+            submagma(G, sorted(helems), elements_only = True)[1])
+        ord4_pts -= helems
+        return helems
+    raise InvalidRep('exhausted pts of order 4')
+
+with gens in GrpGenFambly(G, 6).generators():
+    i,a,b,c,d,e,f = gens
+    
+helems = subgrp_o4_hlpr(G, ord4_pts) #<a,b>
+subgrp_o4_hlpr(G, ord4_pts, helems) #<a,b,c,d>
+
+
+    
+    
 def pres_xtraspec_128(G: NDArray[int], verbose:bool = False) -> None:
     # < a,b,c,d,e,f |
-    #    a^2 = b^2 = (ab)^2 = c^2 = d^2 = (cd)^2 = (ef)^2
-    #    e^2 = f^2 = 1
-    #    ac = ca, ad = da, bc = cb, bd = db, ae = ea, be = eb
-    #    ce = ec, de = ed, af = fa, bf = fb, cf = fc, df = fd >
-    for gens in GrpGenFambly(G, 6).generators():
-        ident, a, b, c, d, e, f = gens
-        asq = a * a
+    #     a^2 = b^2 = (ab)^2 = c^2 = d^2 = (cd)^2 = (ef)^2
+    #     e^2 = f^2 = 1
+    #     ac = ca, ad = da, bc = cb, bd = db, ae = ea, be = eb
+    #     ce = ec, de = ed, af = fa, bf = fb, cf = fc, df = fd >
+    for g in GrpGenFambly(G, 6).generators():
+        asq = g[1].pow(2)
+        try: 
+            for sqeq, i, j in [(asq,1,2), (asq,3,4), (0,5,6)]:
+                if g[i].pow(2) != sqeq or g.mul([i, j, i, j]) != sqeq: 
+                    IncrementFromHere()
+        except IncrementFromHere as e:
+            g.next_iter(i)
+            
+        g[2].excluded.update(
+            dict.fromkeys(submagma(G, {0,1,2}, no_alias = True)[1]))        
+
+        
+        if c in b.excluded:
+            c, 
+        
+        
+        if 
         for x in (b, c, d):
             sq_hlpr(asq, x)
         for x in (e, f):
@@ -147,9 +446,14 @@ def pres_xtraspec_128(G: NDArray[int], verbose:bool = False) -> None:
                      (a,e), (b,e), (c,e), (d,e),
                      (a,f), (b,f), (c,f), (d,f)]:
             comm_hlpr(x, y)
-        if verbose:
+        if set(gens) == set(submagma(G, gens, no_alias=True)):
             s = ', '.join([str(g) for g in gens])
             print(f'XtraSpec128 passed with {s}')
+            return True
+        else:
+            print('WARNING')
+            
+             == submagma(G, (ident,a,b,c,d,e,f))
 
 def sq_hlpr(lhs:GrpGen, x:GrpGen) -> None:
     if lhs != (xsq := x * x):

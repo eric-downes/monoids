@@ -36,3 +36,5 @@ def row_hash(r : np.array) -> tuple[int,...]|bytes:
         return tuple(r)    
     # works so long as row is C-contiguous; otherwise consider tuple(r)
     return blake2b(r).digest()
+
+    
