@@ -137,6 +137,7 @@ def subgrp_o4_hlpr(G:NDArray[int],
         return helems
     raise InvalidRep('exhausted pts of order 4')
 
+'''
 with gens in GrpGenFambly(G, 6).generators():
     i,a,b,c,d,e,f = gens
     
@@ -199,7 +200,6 @@ def comm_hlpr(x:GrpGen, y:GrpGen) -> None:
         InvalidPres(f'comm_hlpr: {xy} != {yx}')
 
 
-'''
 class GroupGeneratorSeries:
     def __init__(self, grp:NDArray[int], rank:int, namespace: Iterator[str]):
         assert rank >= 0

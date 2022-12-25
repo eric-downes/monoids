@@ -137,6 +137,47 @@ def _orbit(i:int, ai:tuple[int]) -> set[int]:
 def group_orbit(i:int, a:NDArray[int], outyp:type = list) -> Sequence[int]:
     return outyp(_orbit(i, tuple(a[i])))
 
+from itertools import combinations
+
+def cosets(a:NDArray[int],
+           s:set[int],
+           left:bool = True,
+           bail_on:Callable = lambda *args:False) -> dict[frozenset[int], set[int]]:
+    ss = sorted(s)
+    cos = {}
+    for i, row in enumerate(a if left else a.T):
+        r = frozenset(row[ss])
+        if bail_on(r): return None
+        cos.setdefault(frozenset(row[ss]), set()).add(i)
+    return cos
+
+import arrow
+def find_separation(a:NDArray[int], sep:set[int],
+                    potdiv:set[int],
+                    left:bool = True) -> tuple[dict[frozenset[int], set[int]], set[int]]:
+    subl = len(a) / len(sep)
+    if int(subl) != subl:
+        return {}, set()
+    bail_on = lambda r: len(sep & r) > 1
+    aa = (a if left else a.T).copy()
+    avoid = set()
+    for n in range(2, d := len(potdiv)):
+        for combo in combinations(potdiv, n):
+            if any(frozenset(combo) <= key for key in avoid):
+                continue
+            subm = frozenset(submagma(aa, combo, elements_only = True, max_order = subl)[1])
+            if subm in avoid:
+                continue
+            if len(subm) == subl:
+                cos = cosets(aa, subm, left, bail_on)
+                if cos is not None:
+                    print('success!')
+                    return cos, combo
+            avoid.add(fsub)
+        print(arrow.now(), f'finished order-{n}/{d} search')
+    return {}, set()
+
+
 def commutators(a: NDArray[int]) -> list[set[int]]:
     assert is_group(a)
     # depends on the group identity being given index 0...

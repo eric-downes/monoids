@@ -91,8 +91,9 @@ def invert(bij:Sequence[int]) -> pd.Series:
     return ser.sort_index()['index']
 
 def submagma(G:NDArray[int],
-             gens:list[int],
-             elements_only:bool = False) -> tuple[NDArray[int], list[int]]:
+             gens:list[int]|set[int],
+             elements_only:bool = False,
+             max_order:int = 0) -> tuple[NDArray[int], list[int]]:
     assert is_magma(G)
     helems = list(set(gens))
     orderH = 0
@@ -100,6 +101,8 @@ def submagma(G:NDArray[int],
     helems = list(set(H.ravel()))
     while orderH - (orderH := len(helems)):
         helems = list(set((H := G[helems].T[helems].T).ravel()))
+        if max_order and len(helems) > max_order:
+            return np.array([]), set()
     if elements_only or orderH == len(G):
         return H, helems
     gi_to_hi = invert(helems)
