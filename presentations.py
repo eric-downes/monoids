@@ -1,9 +1,23 @@
 from __future__ import annotations
 from itertools import combinations
+from dataclasses import dataclass
+from functools import partial
+from typing import *
 import string
 import math
 
-from monoids import *
+from numpy.typing import NDArray
+import pandas as pd
+import numpy as np
+
+from monoids import group_orbit, is_group
+from magmas import submagma, invert
+
+
+'types'
+
+Order = int
+Elem = int
 
 class InvalidPres(ValueError):
     pass
@@ -16,8 +30,85 @@ class GrpGen:
     excluded: ChainMap[set]
     adopted: bool
 
+@dataclass
+class Rule:
+    order: int
+    passes: Callable[[int, ...], bool]
 
+'classes'
+    
+class Searcher:
+
+    def __init__(self, G : NDArray[int], rules : list[Rule]):
+        assert is_group(G)
+        assert 0 < len(rules) <= len(G) // 2
+        self.G = G
+        self.rules = rules
+        self.rank = len(rules)
+        self.look = {}
+        self.orbs = {}
+        for g in range(len(G)):
+            orb = tuple(group_orbit(g, G))
+            self.orbs[g] = orb
+            self.look.setdefault(len(orb), set()).add(g)
+        self.gens = []
+        self.subs = []
+        self.excl = [{0}]
+        self.disq = set()
+
+    def generated(self, adjoining:int = None) -> tuple[NDArray[int], list[int]]:
+        adj = {0, adjoining} if adjoining else {0}
+        return submagma(self.G, set(self.gens).union(adj))
+        
+    def excluded(self, g:int, rule:Rule) -> bool|None:
+        sig = tuple(self.gens) + (g,)
+        if (g in self.excl[-1] or
+            sig in self.disq or
+            not rule.passes(* sig)):
+            return True
+
+    def search(self, verbose:bool = False) -> bool:
+        if len(self.gens) > len(self.rules):
+            return True
+        depth = len(self.gens)
+        if verbose:
+            print(f'at depth = {depth}')
+        rule = self.rules[depth]
+        order = rule.order
+        candidates = self.look[order]
+        for g in candidates:
+            
+            if self.excluded(g, rule):
+                continue
+            if verbose:
+                print(f'{len(self.gens) + 1}:{g} not excluded outright')
+            
+            H, helems = self.generated(adjoining = g)
+            inh = invert(helems)
+            if len(group_orbit(inh[g], H)) != order:
+                self.disq.add(tuple(self.gens) + (g,))
+                continue
+            if verbose:
+                print(f'{len(self.gens)}:|{g}| correct in subgroup')
+            
+            self.gens.append(g)
+            self.subs.append(set(helems))
+            self.excl.append(self.excl[-1] | self.subs[-1])
+            if self.search():
+                return True
+            
+            self.disq.add(tuple(self.gens))
+            self.gens.pop()
+            self.subs.pop()
+            self.excl.pop()
+            if verbose:
+                print(f'{len(self.gens) + 1}:{g} didnt lead anywhere')
+
+        return False
+
+    
 class GrpGenFambly:
+
     def __init__(self, grp:NDArray[int], rank:int,
                  namespace:list[str] = None):
         assert is_group(grp)
@@ -28,6 +119,7 @@ class GrpGenFambly:
             self.namespace = self._create_names(rank)
         self.stack = [GrpGen(self, 0, '1', ChainMap(set()), True)]
         self.passed = set()
+        
     @classmethod
     def _create_names(cls, rank:int, symbols:str = None) -> list[str]:
         if symbols is None:
@@ -38,6 +130,7 @@ class GrpGenFambly:
             names.append(name[0])
             if i == rank:
                 return names
+
     def generators(self) -> Iterator[list[GrpGen]]:
         saved = tuple([-1] * (self.rank + 1))
         n = 0
@@ -51,15 +144,18 @@ class GrpGenFambly:
             saved = self.sig()
             self.passed.add(self.sig())
             self.stack.pop()
+
     def sig(self, g:int = None, k:int = None):
         if k is None: k = len(self.stack)
         s = tuple(x.g for x in self.stack[:k])
         if g is not None: s = s + (g,)
         return s
+
     def _excluded(self, g:int, k:int = None) -> bool:
         if k is None: k = len(self.stack) - 1
         return g in self.stack[k].excluded or \
             self.sig(g, k + 1) in self.passed
+
     def _adoption_search(self) -> bool:
         val = self.rank + 1 - len(self.stack)
         if not val:
@@ -73,13 +169,16 @@ class GrpGenFambly:
                 return True
             self._disown_child()
         return False
+
     def _adopt_child(self, g:int) -> None:
         assert len(self.stack) - 1 < self.rank
         name = self.namespace[len(self.stack)]
         cmap = ChainMap(group_orbit(g, self.G, set), self.stack[-1].excluded)
         self.stack.append(GrpGen(self, g, name, cmap, True))
+
     def _disown_child(self) -> GrpGen:
         return self.stack.pop()
+
 
 def is_group_pres_valid(a: NDArray[int],
                         pres:Callable[NDArray[int],None],
@@ -93,6 +192,11 @@ def is_group_pres_valid(a: NDArray[int],
     except InvalidPres as e:
         print(pres.__name__, 'INVALID:', e)
         return False
+
+
+'specific presentations'
+
+'q128'
 
 def pres_Q128(a: NDArray[int], verbose:bool = False) -> None:
     # < x, y | x^64 = 1, y^2 = x^32, xyx = y >
@@ -117,7 +221,7 @@ def pres_Q128(a: NDArray[int], verbose:bool = False) -> None:
 def subgrp_o4_hlpr(G:NDArray[int],
                    ord4_pts:set[int],
                    helems:set[int] = None,
-                   sqeq:int = None) -> set[int]:
+                   sqeq:int = None) -> set[int]:    
     if helems is None: helems = set()
     else: ord4_pts -= helems
     while ord4_pts:
@@ -137,6 +241,84 @@ def subgrp_o4_hlpr(G:NDArray[int],
         return helems
     raise InvalidRep('exhausted pts of order 4')
 
+
+'extraspecial 2^(1+6)_+'
+
+def pto4(a:int, G:NDArray[int]) -> bool:
+    asq = G[a,a]
+    return G[asq,asq] == 0
+
+def a_passes(*gs:int, G:NDArray[int]) -> bool:
+    return pto4(gs[0], G)
+
+def b_passes(*gs:int, G:NDArray[int]) -> bool:
+    a,b = gs[:2]
+    for x in (a,b):
+        if not pto4(x, G):
+            return False
+    asq = G[a,a]
+    ab = G[a,b]
+    if (G[b,b]   == asq and
+        G[ab,ab] == asq):
+        return True
+
+def c_passes(*gs:int, G:NDArray[int]) -> bool:
+    a,b,c = gs[:3]
+    for x in (a,b,c):
+        if not pto4(x, G):
+            return False
+    if (G[c,c] == G[a,a] and 
+        G[a,c] == G[c,a] and
+        G[b,c] == G[c,b]):
+        return True
+
+def d_passes(*gs:int, G:NDArray[int]) -> bool:
+    a,b,c,d = gs[:4]
+    for x in (a,b,c,d):
+        if not pto4(x, G):
+            return False
+    csq = G[c,c]
+    cd = G[c,d]
+    if (G[cd,cd] == csq and
+        G[d,d]   == csq and
+        G[a,d]   == G[d,a]):
+        return True
+    
+def e_passes(*gs:int, G:NDArray[int]) -> bool:
+    a,b,c,d,e = gs[:5]
+    for x in (a,b,c,d):
+        if not pto4(x, G):
+            return False
+        if G[e,x] != G[x,e]:
+            return False
+    return True
+
+def f_passes(*gs:int, G:NDArray[int]) -> bool:
+    a,b,c,d,e,f = gs[:6]
+    for x in (a,b,c,d):
+        if not pto4(x, G):
+            return False       
+        if G[e,x] != G[x,e]:
+            return False
+    ef = G[e,f]
+    return G[a,a] == G[ef,ef]
+
+def pres_xs128(G:NDArray[int], verbose:bool = False):
+    of = ((4, a_passes),
+          (4, b_passes),
+          (4, c_passes),
+          (4, d_passes),
+          (2, e_passes),
+          (2, f_passes))
+    rules = [Rule(order, partial(test, G = G)) for order, test in of]
+    searcher = Searcher(G, rules)
+    searcher.search(verbose)
+    H, hmap = searcher.generated()
+    if H != G:
+        raise InvalidPres('XS128+ not valid')
+
+
+'''
 with gens in GrpGenFambly(G, 6).generators():
     i,a,b,c,d,e,f = gens
     
@@ -199,7 +381,6 @@ def comm_hlpr(x:GrpGen, y:GrpGen) -> None:
         InvalidPres(f'comm_hlpr: {xy} != {yx}')
 
 
-'''
 class GroupGeneratorSeries:
     def __init__(self, grp:NDArray[int], rank:int, namespace: Iterator[str]):
         assert rank >= 0
