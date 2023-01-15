@@ -68,9 +68,9 @@ class Searcher:
             return True
 
     def search(self, verbose:bool = False) -> bool:
-        if len(self.gens) > len(self.rules):
-            return True
         depth = len(self.gens)
+        if depth >= self.rank:
+            return True
         if verbose:
             print(f'at depth = {depth}')
         rule = self.rules[depth]
@@ -314,8 +314,8 @@ def pres_xs128(G:NDArray[int], verbose:bool = False):
     searcher = Searcher(G, rules)
     searcher.search(verbose)
     H, hmap = searcher.generated()
-    if H != G:
-        raise InvalidPres('XS128+ not valid')
+    if (H != G).any():
+        raise InvalidPres('XS128+ pres. not valid')
 
 
 '''
