@@ -180,6 +180,22 @@ class GrpGenFambly:
         return self.stack.pop()
 
 
+'functions'
+
+def expand_group_elements(G:NDArray[int], gens:list[int],
+                     one:int = 0):
+    gens = sorted(gens)
+    pres = {(g,) for g in gens+[one]}
+    for g in gens:
+        powg = g
+        while powg != one:
+            grow = G[powg]
+            for k, seq in tuple(pres.items()):
+                if (x := grow[k]) not in pres:
+                    pres[x] = seq + (g,)
+            powg = grow[powg]
+    return pres
+
 def is_group_pres_valid(a: NDArray[int],
                         pres:Callable[NDArray[int],None],
                         verbose:bool = False) -> bool:
