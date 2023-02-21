@@ -52,10 +52,14 @@ def double_rows(a : NDArray[T]) -> NDArray[T]:
     delta.fill(np.iinfo(a.dtype).max)
     return np.vstack((a, delta))
 
+def count(gseq:str) -> int:
+    return gseq.count('i') + gseq.count('j') + gseq.count('l')
+
 def compose_and_record(a: NDArray[int],
                        i: int,
                        j: int,
                        dok: DoK[int],
+                       gens: dict[int,str],
                        rows: Rows,
                        prog: dict[str, int],
                        verbose: bool = False,
@@ -64,6 +68,9 @@ def compose_and_record(a: NDArray[int],
     ak = a[i][ a[j] ] #even on large a, a[i] takes ns; prob dont need to cache
     k = rows.setdefault(row_hash(ak), n)
     dok[(i,j)] = k
+    gens[k] = min(gseq := '(' + gens[i] + '.' + gens[j] + ')',
+                  gens.get(k, 2 * gseq),
+                  key = count)
     if k == n:
         if raise_on_novel:
             raise NovelRow()
@@ -71,27 +78,34 @@ def compose_and_record(a: NDArray[int],
         n += 1
         if n == a.shape[0]:
             a = double_rows(a)
-        prog['n'] = n 
+        prog['n'] = n
     if verbose:
         print(a[i], ' o ', a[j], ' = ',  ak)
     return a
 
-def row_closure(a:NDArray[int],
+def row_closure(A:NDArray[int],
+                labels:list[str] = {},
                 raise_on_novel:bool = False,
-                verbose:bool = False) -> tuple[NDArray[int], DoK[int], Rows]:
+                verbose:bool = False
+                ) -> tuple[NDArray[int], DoK[int], Rows, dict[int,str]]:
+    if labels: assert len(labels) == len(A)
+    rows = {}
+    gens = {}
     dok = {}
-    rows = {row_hash(r):i for i,r in enumerate(a)}
+    for i,r in enumerate(A):
+        rows[row_hash(r)] = i
+        gens[i] = labels[i] if labels else str(i)
     prog = {'n': (n := a.shape[0])}
     fcn = partial(compose_and_record,
-                  dok = dok, rows = rows, prog = prog,
+                  dok = dok, rows = rows, prog = prog, gens = gens,
                   verbose = verbose, raise_on_novel = raise_on_novel)
     app = Applicator(fcn)
-    a = app.square(double_rows(a), n)
-    a = double_rows(a)
+    A = app.square(double_rows(A), n)
+    A = double_rows(A)
     while n != prog['n']:
         app.extend(a, (n := prog['n']))
         print(f"a now has {prog['n']} rows")
-    return a[:n], dok, rows
+    return a[:n], dok, rows, gens
 
 def is_associative(a: NDArray[int]) -> bool:
     try: row_closure(a, verbose = False, raise_on_novel = True)
