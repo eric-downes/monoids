@@ -2,6 +2,7 @@ from presentations import *
 from monoids import *
 
 if __name__ == '__main__':
+    verbose = '--verbose' in sys.argv
     if '--octonions' in sys.argv:
         '''sanity check:
          def conj(x:int)->int:
@@ -31,14 +32,14 @@ if __name__ == '__main__':
         print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
         labels = ['1','i','j','ij','l','il','jl','(ij)l'] + \
             ['-1','-i','-j','-ij','-l','-il','-jl','-(ij)l']
-        data = row_monoid(octos, labels = labels)
+        data = row_monoid(octos, labels = labels, verbose = verbose)
         is_group_pres_valid(data.monoid_table, pres_Q128)
         is_group_pres_valid(data.monoid_table, pres_xs128)
     else:
         fil = 'rps_monoid.csv'
         print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
         rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
-        data = row_monoid(rps_magma)
+        data = row_monoid(rps_magma, verbose=verbose)
     pd.DataFrame(data.monoid_table).to_csv(fil, index=False, header=False)
     print('\n\n\nresults!')
     print(f'\n\noriginal magma:\n{data.row_closure[:data.magma_order]}')
