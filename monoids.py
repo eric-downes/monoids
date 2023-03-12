@@ -1,6 +1,7 @@
 from functools import partial, lru_cache
 from hashlib import blake2b
 import sys
+import re
 
 from pprint import pprint
 
@@ -18,6 +19,7 @@ class RowMonoid:
     monoid_table: NDArray[int]
     row_map: Rows
     magma_order: int # m.row_closure[:m.magma_order] is original magma
+    labels: list[str] = None
 
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
@@ -52,8 +54,9 @@ def double_rows(a : NDArray[T]) -> NDArray[T]:
     delta.fill(np.iinfo(a.dtype).max)
     return np.vstack((a, delta))
 
-def count(gseq:str) -> int:
-    return gseq.count('i') + gseq.count('j') + gseq.count('l')
+def default_count(gseq:str, gstrs:str = None) -> int:
+    if gstrs: return len(re.findall(f'[{gstrs}]', gseq))
+    return gseq.count('.')
 
 def compose_and_record(a: NDArray[int],
                        i: int,
@@ -62,15 +65,15 @@ def compose_and_record(a: NDArray[int],
                        gens: dict[int,str],
                        rows: Rows,
                        prog: dict[str, int],
+                       count: Callable = default_count,
                        verbose: bool = False,
                        raise_on_novel: bool = False) -> NDArray[int]:
     n = prog['n']
     ak = a[i][ a[j] ] #even on large a, a[i] takes ns; prob dont need to cache
     k = rows.setdefault(row_hash(ak), n)
     dok[(i,j)] = k
-    gens[k] = min(gseq := '(' + gens[i] + '.' + gens[j] + ')',
-                  gens.get(k, 2 * gseq),
-                  key = count)
+    gseq = '(' + gens[i] + '.' + gens[j] + ')'
+    gens[k] = gseq if not (s := gens.get(k, None)) else min(gseq, s, key = count)
     if k == n:
         if raise_on_novel:
             raise NovelRow()
@@ -83,29 +86,31 @@ def compose_and_record(a: NDArray[int],
         print(a[i], ' o ', a[j], ' = ',  ak)
     return a
 
-def row_closure(A:NDArray[int],
-                labels:list[str] = {},
+def row_closure(a:NDArray[int],
+                labels:list[str] = [],
                 raise_on_novel:bool = False,
                 verbose:bool = False
                 ) -> tuple[NDArray[int], DoK[int], Rows, dict[int,str]]:
-    if labels: assert len(labels) == len(A)
+    if labels: assert len(labels) == len(a)
     rows = {}
     gens = {}
     dok = {}
-    for i,r in enumerate(A):
+    for i,r in enumerate(a):
         rows[row_hash(r)] = i
         gens[i] = labels[i] if labels else str(i)
     prog = {'n': (n := a.shape[0])}
-    fcn = partial(compose_and_record,
+    gstrs = ''.join(set(re.findall('\w', ''.join(labels))))
+    count = partial(default_count, gstrs = gstrs)
+    fcn = partial(compose_and_record, count = count,
                   dok = dok, rows = rows, prog = prog, gens = gens,
                   verbose = verbose, raise_on_novel = raise_on_novel)
     app = Applicator(fcn)
-    A = app.square(double_rows(A), n)
-    A = double_rows(A)
+    a = app.square(double_rows(a), n)
+    a = double_rows(a)
     while n != prog['n']:
         app.extend(a, (n := prog['n']))
         print(f"a now has {prog['n']} rows")
-    return a[:n], dok, rows, gens
+    return a[:n], dok, rows, [gens[i] for i in range(len(gens))]
 
 def is_associative(a: NDArray[int]) -> bool:
     try: row_closure(a, verbose = False, raise_on_novel = True)
@@ -113,21 +118,28 @@ def is_associative(a: NDArray[int]) -> bool:
     return True
 associates = is_associative
 
-def row_monoid(a: NDArray[int], verbose:bool = False) -> RowMonoid:
+def row_monoid(a: NDArray[int], labels:list[str] = None,
+               verbose:bool = False) -> RowMonoid:
     # no user-friendly relabelling: identity might be row 45
     assert np.issubdtype(a.dtype, np.integer)
     assert len(a.shape) == 2
     assert (a < max(a.shape)).all() and (0 <= a).all()
+    if labels:
+        assert len(labels) == len(a)
+    else:
+        labels = {}
     if a.shape[1] <= a.max():
         a = a.T
     n_original_rows = a.shape[0]
-    a, dok, rows = row_closure(a, verbose = verbose)
+    a, dok, rows, labels = row_closure(a, labels = labels, verbose = verbose)
+    for i, label in enumerate(labels):
+        labels[i] = re.sub('^\((.+)\)$', '\g<1>', label)
     order = len(rows)
     m = np.zeros(dtype=int, shape=(order, order))
     for (i,j),k in dok.items():
         m[i,j] = k
     m = adjoin_identity(m)
-    return RowMonoid(a, m, rows, n_original_rows)
+    return RowMonoid(a, m, rows, n_original_rows, labels)
 
 def is_semigroup(a: NDArray[int]) -> bool:
     return is_magma(a) and is_associative(a)
