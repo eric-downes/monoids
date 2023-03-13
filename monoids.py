@@ -1,4 +1,5 @@
 from functools import partial, lru_cache
+from typing import TypeVar, Callable
 from hashlib import blake2b
 import sys
 import re
@@ -7,9 +8,11 @@ from pprint import pprint
 
 from magmas import *
 
+T = TypeVar('T')
+Unop = Callable[[T],T]
 RowId = bytes|tuple[int,...]
 Rows = dict[RowId, int]
-
+HashFcn = Callable[[T], RowId]
 
 class NovelRow(Exception): pass
     
@@ -72,8 +75,11 @@ def compose_and_record(a: NDArray[int],
     ak = a[i][ a[j] ] #even on large a, a[i] takes ns; prob dont need to cache
     k = rows.setdefault(row_hash(ak), n)
     dok[(i,j)] = k
-    gseq = '(' + gens[i] + '.' + gens[j] + ')'
-    gens[k] = gseq if not (s := gens.get(k, None)) else min(gseq, s, key = count)
+    gseq = gens[i] + '.' + gens[j] # assoc -> parens not needed
+    if (s:= gens.get(k,None)):
+        gens[k] = min(gseq, s, key = count)
+    else:
+        gens[k] = gseq
     if k == n:
         if raise_on_novel:
             raise NovelRow()
@@ -160,6 +166,15 @@ def _orbit(i:int, ai:tuple[int]) -> set[int]:
         seen[j] = None
     return seen.keys()
 
+def cyclic_endomonoid(f:Unop[T], ident:T) -> dict[T,tuple[int,T]]:
+    d = {}
+    i = 1
+    d[ident] = (i, y := f(ident))
+    while y not in d:
+        d[y] = (i := i + 1, yp := f(y))
+        y = yp
+    return d
+
 def group_orbit(i:int, a:NDArray[int], outyp:type = list) -> Sequence[int]:
     return outyp(_orbit(i, tuple(a[i])))
 
@@ -236,4 +251,12 @@ def ring_extension(a: NDArray[int]) -> NDArray[int]:
         return None
     m = np.zeros(dtype = int, shape = np.r_[a.shape]+1)
 
+shared = a.keys() & b.keys()
+afst = min(a[list(shared)], key = lambda t: t[0])
+bfst = min(b[list(shared)], key = lambda t: t[0])
+usea = bfst <= afst
+for x in (
+    np.array(a.keys())
+
+for sorted(cyclic_monoids, key = )
 '''

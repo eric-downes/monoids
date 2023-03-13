@@ -44,5 +44,10 @@ if __name__ == '__main__':
     print('\n\n\nresults!')
     print(f'\n\noriginal magma:\n{data.row_closure[:data.magma_order]}')
     print(f'\n\nrow monoid:\n{data.monoid_table}')
-    print('\n\nmapping: \n')
-    pprint(data.row_map)
+    for r,i in data.row_map.items():
+        n = data.labels[i]
+        name = n.replace('-','')
+        if n.count('-') % 2:
+            name = '-' + name
+        s = f'[{r}]'.replace(',','')
+        print(f'g({i}) = {name}: {s}')
