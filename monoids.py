@@ -119,7 +119,9 @@ def row_closure(a:NDArray[int],
     return a[:n], dok, rows, [gens[i] for i in range(len(gens))]
 
 def is_associative(a: NDArray[int]) -> bool:
-    try: row_closure(a, verbose = False, raise_on_novel = True)
+    try: # some pathological magmas need us to check both
+        row_closure(a, verbose = False, raise_on_novel = True)
+        row_closure(a.T, verbose = False, raise_on_novel = True)
     except NovelRow: return False
     return True
 associates = is_associative
@@ -214,8 +216,33 @@ def cyclic_group(n:int) -> NDArray[int]:
     for _ in range(n - 1):
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
+
+def center(a:NDArray[int]) -> set[int]:
+    z = {}
+    for i in range(len(a)):
+        if (a[i] == a[:,i].T).all():
+            z.add(i)
+    return z
+
+def inn(a:NDArray[int]) -> tuple[NDArray[int], list[int]]:
+    if is_group(a):
+        return quotient(a, center(a))
+    if not is_loop(a):
+        raise TypeError('dont know how to take inner autos of non-loop')
+    l = {}
+    r = {}
+    for i in range(len(a)):
+        v = a[i]
+        inv = np.argmin(v)
+        l.setdefault(row_hash(a[v][inv]), set()).add(i)
+        v = a.T[i].T
+        r.setdefault(row_hash(a.T[v][inv]), set()).add(i)        
+    return l, r
     
-          
+
+
+
+
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:

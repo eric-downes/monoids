@@ -106,9 +106,6 @@ def submagma(G:NDArray[int],
     return np.array([gi_to_hi[row] for row in H]), helems
 
 
-
-
-
 def fingerprint(x):
     return hash(tuple(x))
 

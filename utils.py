@@ -32,8 +32,8 @@ def iprod(itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
             yield a,b
 
 def row_hash(r : np.array) -> tuple[int,...]|bytes:
-    return tuple(r)    
-    # works so long as row is C-contiguous; otherwise consider tuple(r)
+    return tuple(r)
+    # only works so long as row is C-contiguous...
     # return blake2b(r).digest()
 
     
