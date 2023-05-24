@@ -26,6 +26,9 @@ class Applicator:
             a = self.f(a, j, i)
         return self.square(a, until)
 
+def ident(x:Any) -> Any:
+    return x
+    
 def iprod(itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
     for a in itera:
         for b in iterb:

@@ -1,5 +1,17 @@
 from utils import *
 
+def is_action(A:NDArray[int], rows:bool = True) -> bool:
+    f = ident if rows else (lambda x: x.T)
+    return A.max() < f(A).shape[1]
+
+def greens_preorders(A:NDArray[int]) -> dict[str,list[set[int]]]:
+    assert is_magma(A)
+    pre = dict.fromkeys(['l','r','lr'])
+    pre['l'] = list(map(set, A))
+    pre['r'] = list(map(set, A.T))
+    pre['lr'] = [l & r for l,r in zip(pre['l'], pre['r'])]
+    return pre
+        
 def magma_section(a:NDArray[int], subset:Iterator[int]
                   ) -> tuple[NDArray[int], list[int], bool]:
     elems = sorted(subset)

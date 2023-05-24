@@ -24,9 +24,15 @@ class RowMonoid:
     magma_order: int # m.row_closure[:m.magma_order] is original magma
     labels: list[str] = None
 
+def endo_orbit(endo:NDArray[int]) -> dict[tuple[int,...], int]:
+    assert is_endo(endo)
+    seen = {tuple(x := np.arange(len(endo))) : (c := 0)}
+    while c < len(seen):
+        seen.setdefault(tuple(x := endo[x]), c := c + 1)
+    return seen
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
-    # somewhat fragile... need to make more robust typed relabellling system 
+    # somewhat fragile... need to make more robust typed relabelling system 
     assert (n := a.shape[0]) == a.shape[1] and len(a.shape) == 2
     rone = np.arange(a.shape[1])
     rhas = (rone == a).all(1)
@@ -214,8 +220,69 @@ def cyclic_group(n:int) -> NDArray[int]:
     for _ in range(n - 1):
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
+
+def homutator(G:NDArray[int],
+              H:NDArray[int],
+              f:dict[int,int]) -> dict[tuple[int,int], tuple[int,int]]:
+    post = {}
+    prior = {}
+    for i in range(len(G)):
+        hinv = np.argmin(H[f[i]])
+        inv = np.argmin(G[i])
+        for j in range(len(G)):            
+            hjnv = np.argmin(H[f[j]])
+            jnv = np.argmin(G[j])
+            prodimg = f[G[i,j]]
+            u[(i,j)] = (H[prodimg, H[f[jnv], f[inv]]],
+                        H[prodimg, H[hjnv, hinv]])                
+    return u
+
+def direct_product(G, H) -> NDArray[int]:
+    AB = sorted([G, H], key = lambda x: len(x))
+    ordc = (orda := len(A := AB[0])) * (ordb := len(B := AB[1]))
+    tmp = np.empty(shape = (ordc, ordc, 2), dtype = int)
+    k = 0
+    for a in range(orda):
+        for b in range(ordb):
+            tmp[a*b:(a+1)*b, k*b:(k+1)*b, 0] = A[a,k]
+            tmp[a*b:(a+1)*b, k*b:(k+1)*b, 1] = B
+        k += 1
+    emap = {tuple(pair):i for pair, i in zip(tmp[0], range(ordc))}
+    C = np.empty(shape = (ordc, ordc), dtype = int)
+    for i in range(ordc):
+        for j in range(ordc):
+            C[i,j] = emap[tuple(tmp[i,j])]
+    return C
+
+class Aut:
+    has_outer = True
+
+class Inn(Aut):
+    has_outer = False
+    def __init__(self, G:NDArray[int]):
+        assert is_group(G)
+        order = len(G)
+        inv = np.argmin(G, 1)
+        inn = {}
+        for i in range(order):
+            aut = tuple(G[i][ G[inv] ])
+            inn.setdefault(aut, set()).add(i)
+        self.inn_fcns = inn
+        arr = np.array(shape=(len(inn), order), dtype=int)
+        row_monoid(arr, labels = [str(min(v)) for v in inn.values()])
     
-          
+
+def semidirect_product(G, H) -> NDArray[int]:
+    AB = sorted([G, H], key = lambda x: len(x))
+    A = invert_group(AB[0])
+    return direct_product(A, AB[1])
+
+def invert_group(G) -> NDArray[int]:
+    np.argmin(G, 1)
+        
+        
+
+
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:
@@ -240,6 +307,39 @@ def group_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     if not pwr:
         return 0
     return left_magma_pow(i, pwr, a, check = False)
+
+
+def generate_labels(action:NDArray[int], rows:bool = True) -> list[str]:
+    # we already do this in row_monoid...
+    # either create the full Green's preorder on fcns or
+    # just focus on the Green's preorder in magmas
+    s = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNPQRSTUVWXYZ"
+    if not rows: action = action.T
+    assert action.max() < action.shape[1]
+    k = 0
+    lookup = {tuple(act):i for i, act in enumerate(action)}
+    greens = {}
+    semigroup = set()
+    while lookup:
+        orbit = endo_orbit(action[k])
+        semigroup |= orbit.keys()
+        for act in op.and_(*sorted([lookup.keys(), orbit.keys()], key = len)):
+            greens[lookup[act]] = (k, orbit[act])
+            lookup.pop(act)
+        k += 1
+ ...
+    orbits = sorted([(i, endo_orbit(act)) for i, act in enumerate(action)],
+                    key = lambda x: len(x[1]))
+    closed = reduce(lambda x,y: x[1].keys()|x[2].keys(), orbits)
+    labels = [''] * len(action)
+    c = 0
+    while orbits:
+        i, orbit = orbits.pop()
+        labels[i] = s[c := c + 1]
+        if not (closed := closed - orbit.keys()):
+            break
+        orbits = sorted([orb - orbit.keys() for orb in orbits], key = lambda x: len(x[1]))
+    return labels
 
 
 it seems like for a one-generator abelian group <a|..>, we should
