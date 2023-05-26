@@ -237,6 +237,8 @@ def homutator(G:NDArray[int],
                         H[prodimg, H[hjnv, hinv]])                
     return u
 
+def prod_hlpr(): pass
+
 def direct_product(G, H) -> NDArray[int]:
     AB = sorted([G, H], key = lambda x: len(x))
     ordc = (orda := len(A := AB[0])) * (ordb := len(B := AB[1]))
@@ -267,18 +269,38 @@ class Inn(Aut):
         for i in range(order):
             aut = tuple(G[i][ G[inv] ])
             inn.setdefault(aut, set()).add(i)
-        self.inn_fcns = inn
-        arr = np.array(shape=(len(inn), order), dtype=int)
-        row_monoid(arr, labels = [str(min(v)) for v in inn.values()])
-    
+        arr = np.array(shape = (len(inn), order), dtype=int)
+        self.row_group = row_monoid(arr, labels = [str(min(v)) for v in inn.values()])
+        self.table = self.row_group.monoid_table
 
-def semidirect_product(G, H) -> NDArray[int]:
+def semidirect_product(G:NDArray[int], H:NDArray[int], phi:NDArray[int]) -> NDArray[int]:
+    assert is_group(G) and is_group(H)
+    assert phi.shape[0] == G.shape[0] and phi.shape[1] == H.shape[0]
+    assert (phi[0] == np.arange(phi.shape[1])).all()
+    for row in phi:
+        d = {i:j for i, j in enumerate(row)}
+        assert len(set(homutator(H,H,d).values())) == 1, f'phi not in Aut(H)'
+    AB = sorted([G, H], key = lambda x: len(x))
+    ordc = (orda := len(A := AB[0])) * (ordb := len(B := AB[1]))
+    tmp = np.empty(shape = (ordc, ordc, 2), dtype = int)
+    k = 0
+    for a in range(orda):
+        tmp[:, a*ordb:(a+1)*ordb, 1] = np.tile(B[phi[a]], (orda, 1))
+        for b in range(ordb):
+            tmp[a*b:(a+1)*b, k*b:(k+1)*b, 0] = A[a,k]
+        k += 1
+    emap = {tuple(pair):i for pair, i in zip(tmp[0], range(ordc))}
+    C = np.empty(shape = (ordc, ordc), dtype = int)
+    for i in range(ordc):
+        for j in range(ordc):
+            C[i,j] = emap[tuple(tmp[i,j])]
+    return C
+
     AB = sorted([G, H], key = lambda x: len(x))
     A = invert_group(AB[0])
     return direct_product(A, AB[1])
 
-def invert_group(G) -> NDArray[int]:
-    np.argmin(G, 1)
+
         
         
 
