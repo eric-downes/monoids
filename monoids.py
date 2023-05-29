@@ -13,6 +13,8 @@ Unop = Callable[[T],T]
 RowId = bytes|tuple[int,...]
 Rows = dict[RowId, int]
 HashFcn = Callable[[T], RowId]
+Pair = tuple[T,T]
+Sint = set[int]
 
 class NovelRow(Exception): pass
     
@@ -223,9 +225,9 @@ def cyclic_group(n:int) -> NDArray[int]:
 
 def homutator(G:NDArray[int],
               H:NDArray[int],
-              f:dict[int,int]) -> dict[tuple[int,int], tuple[int,int]]:
-    post = {}
-    prior = {}
+              f:dict[int,int]) -> tuple[dict[Pair[int], Pair[int]], Pair[Sint]]:
+    u = {}
+    img = (set(), set())
     for i in range(len(G)):
         hinv = np.argmin(H[f[i]])
         inv = np.argmin(G[i])
@@ -233,9 +235,10 @@ def homutator(G:NDArray[int],
             hjnv = np.argmin(H[f[j]])
             jnv = np.argmin(G[j])
             prodimg = f[G[i,j]]
-            u[(i,j)] = (H[prodimg, H[f[jnv], f[inv]]],
-                        H[prodimg, H[hjnv, hinv]])                
-    return u
+            img[0].add(pre := H[prodimg, H[f[jnv], f[inv]]])            
+            img[1].add(post := H[prodimg, H[hjnv, hinv]])
+            u[(i,j)] = (pre, post)
+    return u, img
 
 def prod_hlpr(): pass
 
@@ -279,16 +282,17 @@ def semidirect_product(G:NDArray[int], H:NDArray[int], phi:NDArray[int]) -> NDAr
     assert (phi[0] == np.arange(phi.shape[1])).all()
     for row in phi:
         d = {i:j for i, j in enumerate(row)}
-        assert len(set(homutator(H,H,d).values())) == 1, f'phi not in Aut(H)'
+        _, img = homutator(H,H,d)
+        assert len(img[0] | img[1]) == 1
     AB = sorted([G, H], key = lambda x: len(x))
     ordc = (orda := len(A := AB[0])) * (ordb := len(B := AB[1]))
     tmp = np.empty(shape = (ordc, ordc, 2), dtype = int)
-    k = 0
     for a in range(orda):
         tmp[:, a*ordb:(a+1)*ordb, 1] = np.tile(B[phi[a]], (orda, 1))
-        for b in range(ordb):
-            tmp[a*b:(a+1)*b, k*b:(k+1)*b, 0] = A[a,k]
-        k += 1
+    for c in range(ordc):
+        a = c // ordb
+        tmp[c, :, 0] = np.repeat(A[a], ordb)
+    print(tmp)
     emap = {tuple(pair):i for pair, i in zip(tmp[0], range(ordc))}
     C = np.empty(shape = (ordc, ordc), dtype = int)
     for i in range(ordc):
