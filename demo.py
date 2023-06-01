@@ -1,6 +1,19 @@
 from presentations import *
 from monoids import *
 
+
+# https://ncatlab.org/nlab/show/octonion
+rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
+octos = adjoin_negatives(
+    np.array([[0,1,2,3,4,5,6,7], \
+              [1,8,3,-2,5,-4,-7,6],\
+              [2,-3,8,1,6,7,-4,-5],\
+              [3,2,-1,8,7,-6,5,-4],\
+              [4,-5,-6,-7,8,1,2,3],\
+              [5,4,-7,6,-1,8,-3,2],\
+              [6,7,4,-5,-2,3,8,-1],\
+              [7,-6,5,4,-3,-2,1,8]]) )
+
 if __name__ == '__main__':
     verbose = '--verbose' in sys.argv
     if '--octonions' in sys.argv:
@@ -18,16 +31,6 @@ if __name__ == '__main__':
                 assert A[A[q,l], p] == A[A[q,conj(p)], l], f'2: (p,q,l)=({p},{q},{l})'
                 assert A[A[l,q],A[p,l]] == A[8, conj(A[q,p])], f'3: (p,q,l)=({p},{q},{l})'
         '''
-        # https://ncatlab.org/nlab/show/octonion
-        octos = adjoin_negatives(
-            np.array([[0,1,2,3,4,5,6,7], \
-                      [1,8,3,-2,5,-4,-7,6],\
-                      [2,-3,8,1,6,7,-4,-5],\
-                      [3,2,-1,8,7,-6,5,-4],\
-                      [4,-5,-6,-7,8,1,2,3],\
-                      [5,4,-7,6,-1,8,-3,2],\
-                      [6,7,4,-5,-2,3,8,-1],\
-                      [7,-6,5,4,-3,-2,1,8]]) )
         fil = 'oct_monoid.csv'
         print(f'row_monoid(magma) demo using octonion magma; saving to {fil}')
         labels = ['1','i','j','ij','l','il','jl','(ij)l'] + \
@@ -38,7 +41,6 @@ if __name__ == '__main__':
     else:
         fil = 'rps_monoid.csv'
         print(f'row_monoid(magma) demo using RPS magma; saving to {fil}')
-        rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
         data = row_monoid(rps_magma, verbose=verbose)
     pd.DataFrame(data.monoid_table).to_csv(fil, index=False, header=False)
     print('\n\n\nresults!')
