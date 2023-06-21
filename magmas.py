@@ -119,8 +119,6 @@ def submagma(G:NDArray[int],
 
 
 
-
-
 def fingerprint(x):
     return hash(tuple(x))
 

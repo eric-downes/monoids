@@ -267,13 +267,21 @@ class Inn(Aut):
     def __init__(self, G:NDArray[int]):
         assert is_group(G)
         order = len(G)
-        inv = np.argmin(G, 1)
         inn = {}
-        for i in range(order):
-            aut = tuple(G[i][ G[inv] ])
-            inn.setdefault(aut, set()).add(i)
+        for p in range(order):
+            q = np.argmin(px := G[p])
+            pxq = px[ G.T[q] ]
+            inn.setdefault(tuple(pxq), set()).add(p)
         arr = np.array(shape = (len(inn), order), dtype=int)
-        self.row_group = row_monoid(arr, labels = [str(min(v)) for v in inn.values()])
+        labels = []
+        reps = []
+        for v in inn.values():
+            reps += [min(v)]
+            labels += [str(rep)]
+        assert len(set(reps)) == len(reps)
+        for r, row in zip(reps, inn.keys()):
+            arr[r] = np.array(row)            
+        self.row_group = row_monoid(arr, labels = labels)
         self.table = self.row_group.monoid_table
 
 def semidirect_product(G:NDArray[int], H:NDArray[int], phi:NDArray[int]) -> NDArray[int]:
