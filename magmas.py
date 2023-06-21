@@ -118,10 +118,6 @@ def submagma(G:NDArray[int],
     return np.array([gi_to_hi[row] for row in H]), helems
 
 
-
-def fingerprint(x):
-    return hash(tuple(x))
-
 NAMES = {(1,0,0):'Unital Magma',
          (1,1,0):'Monoid',
          (1,0,1):'Loop',

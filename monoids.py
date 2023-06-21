@@ -127,7 +127,9 @@ def row_closure(a:NDArray[int],
     return a[:n], dok, rows, [gens[i] for i in range(len(gens))]
 
 def is_associative(a: NDArray[int]) -> bool:
-    try: row_closure(a, verbose = False, raise_on_novel = True)
+    try: # some pathological magmas need us to check both
+        row_closure(a, verbose = False, raise_on_novel = True)
+        row_closure(a.T, verbose = False, raise_on_novel = True)
     except NovelRow: return False
     return True
 associates = is_associative
@@ -223,6 +225,7 @@ def cyclic_group(n:int) -> NDArray[int]:
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
 
+
 def homutator(G:NDArray[int],
               H:NDArray[int],
               f:dict[int,int]) -> tuple[dict[Pair[int], Pair[int]], Pair[Sint]]:
@@ -313,8 +316,27 @@ def semidirect_product(G:NDArray[int], H:NDArray[int], phi:NDArray[int]) -> NDAr
     return direct_product(A, AB[1])
 
 
-        
-        
+def center(a:NDArray[int]) -> set[int]:
+    z = {}
+    for i in range(len(a)):
+        if (a[i] == a[:,i].T).all():
+            z.add(i)
+    return z
+
+def inn(a:NDArray[int]) -> tuple[NDArray[int], list[int]]:
+    if is_group(a):
+        return quotient(a, center(a))
+    if not is_loop(a):
+        raise TypeError('dont know how to take inner autos of non-loop')
+    l = {}
+    r = {}
+    for i in range(len(a)):
+        v = a[i]
+        inv = np.argmin(v)
+        l.setdefault(row_hash(a[v][inv]), set()).add(i)
+        v = a.T[i].T
+        r.setdefault(row_hash(a.T[v][inv]), set()).add(i)        
+    return l, r
 
 
 '''
