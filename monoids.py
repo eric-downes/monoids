@@ -7,7 +7,7 @@ import re
 from pprint import pprint
 
 from magmas import *
-from orbits import *
+#from orbits import *
 
 T = TypeVar('T')
 Unop = Callable[[T],T]
@@ -246,12 +246,6 @@ def homutator(G:NDArray[int],
             u[(i,j)] = (pre, post)
     return u, img
 
-from itertools import product, permutations
-
-CatHom = Callable[[CatObj], CatObj]
-
-def general_aut(obj:CatObj, endo_test:Callable[[Cat, CatHom, CatObj], bool]) -> CatHom:
-    assert endo_test(obj.cat, obj.id, obj)
     
     
     
@@ -288,6 +282,7 @@ def direct_product(G, H) -> NDArray[int]:
 
 class Aut:
     has_outer = True
+    '''
     def __init__(self, G:NDArray[int]):
         assert is_group(G)
         order = len(G)
@@ -301,8 +296,7 @@ class Aut:
             _, img = homutator(G, G, p)
             if len(img[0]) > 1 or len(img[1]) > 1: continue
             auts[p] = Gnp.array(p)
-        for 
-            
+    '''
 
 class Inn(Aut):
     has_outer = False
