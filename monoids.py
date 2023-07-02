@@ -7,6 +7,7 @@ import re
 from pprint import pprint
 
 from magmas import *
+from orbits import *
 
 T = TypeVar('T')
 Unop = Callable[[T],T]
@@ -32,6 +33,29 @@ def endo_orbit(endo:NDArray[int]) -> dict[tuple[int,...], int]:
     while c < len(seen):
         seen.setdefault(tuple(x := endo[x]), c := c + 1)
     return seen
+
+@lru_cache
+def _orbit(i:int, ai:tuple[int]) -> set[int]:
+    j = i
+    seen = {i:None}
+    for _ in range(len(ai)):
+        j = ai[j]
+        if j in seen: break
+        seen[j] = None
+    return seen.keys()
+
+def group_orbit(i:int, a:NDArray[int], outyp:type = list) -> Sequence[int]:
+    return outyp(_orbit(i, tuple(a[i])))
+
+def cyclic_endomonoid(f:Unop[T], ident:T) -> dict[T,tuple[int,T]]:
+    d = {}
+    i = 1
+    d[ident] = (i, y := f(ident))
+    while y not in d:
+        d[y] = (i := i + 1, yp := f(y))
+        y = yp
+    return d
+    
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
     # somewhat fragile... need to make more robust typed relabelling system 
@@ -166,27 +190,7 @@ def is_monoid(a: NDArray[int]) -> bool:
 def is_group(a: NDArray[int]) -> bool:
     return is_loop(a) and is_associative(a)
 
-@lru_cache
-def _orbit(i:int, ai:tuple[int]) -> set[int]:
-    j = i
-    seen = {i:None}
-    for _ in range(len(ai)):
-        j = ai[j]
-        if j in seen: break
-        seen[j] = None
-    return seen.keys()
 
-def cyclic_endomonoid(f:Unop[T], ident:T) -> dict[T,tuple[int,T]]:
-    d = {}
-    i = 1
-    d[ident] = (i, y := f(ident))
-    while y not in d:
-        d[y] = (i := i + 1, yp := f(y))
-        y = yp
-    return d
-
-def group_orbit(i:int, a:NDArray[int], outyp:type = list) -> Sequence[int]:
-    return outyp(_orbit(i, tuple(a[i])))
 
 def commutators(a: NDArray[int]) -> list[set[int]]:
     assert is_group(a)
@@ -200,8 +204,7 @@ def commutators(a: NDArray[int]) -> list[set[int]]:
         comms.append(c)
     return comms
 
-def quotient(g:NDArray[int], helems:set[int]
-             ) -> tuple[NDArray[int], list[int]]:
+def quotient(g:NDArray[int], helems:set[int]) -> tuple[NDArray[int], list[int]]:
     # implicitly assuming <h> is a group...
     assert not (qord := divmod(gord := len(g), len(helems)))[1]
     hmap = list(helems)
@@ -225,10 +228,10 @@ def cyclic_group(n:int) -> NDArray[int]:
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
 
-
 def homutator(G:NDArray[int],
               H:NDArray[int],
-              f:dict[int,int]) -> tuple[dict[Pair[int], Pair[int]], Pair[Sint]]:
+              f:list[int]|dict[int,int]) -> tuple[dict[Pair[int], Pair[int]], Pair[Sint]]:
+    assert len(f) == len(G)
     u = {}
     img = (set(), set())
     for i in range(len(G)):
@@ -242,6 +245,27 @@ def homutator(G:NDArray[int],
             img[1].add(post := H[prodimg, H[hjnv, hinv]])
             u[(i,j)] = (pre, post)
     return u, img
+
+from itertools import product, permutations
+
+CatHom = Callable[[CatObj], CatObj]
+
+def general_aut(obj:CatObj, endo_test:Callable[[Cat, CatHom, CatObj], bool]) -> CatHom:
+    assert endo_test(obj.cat, obj.id, obj)
+    
+    
+    
+
+'''
+def find_mon_hom(G:NDArray[int], H:NDArray[int]):
+    assert is_monoid(G) and is_monoid(H)
+    S, L = sort((G, H), key = lambda x: len(x))
+    
+    s = len(S)
+    l = len(L)
+    for img in product(range(l), repeat = s):
+'''
+
 
 def prod_hlpr(): pass
 
@@ -264,6 +288,21 @@ def direct_product(G, H) -> NDArray[int]:
 
 class Aut:
     has_outer = True
+    def __init__(self, G:NDArray[int]):
+        assert is_group(G)
+        order = len(G)
+        auts = set()
+        for p in range(order):
+            q = np.argmin(px := G[p])
+            pxq = px[ G.T[q] ]
+            inn.add(tuple(pxq))
+        for p in permutations(range(order), order):
+            if p in auts: continue
+            _, img = homutator(G, G, p)
+            if len(img[0]) > 1 or len(img[1]) > 1: continue
+            auts[p] = Gnp.array(p)
+        for 
+            
 
 class Inn(Aut):
     has_outer = False
@@ -283,7 +322,8 @@ class Inn(Aut):
             labels += [str(rep)]
         assert len(set(reps)) == len(reps)
         for r, row in zip(reps, inn.keys()):
-            arr[r] = np.array(row)            
+            arr[r] = np.array(row)
+        self.dict = inn
         self.row_group = row_monoid(arr, labels = labels)
         self.table = self.row_group.monoid_table
 
