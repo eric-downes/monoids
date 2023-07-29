@@ -83,6 +83,7 @@ def is_quasigroup(a: NDArray[int]) -> bool:
 def is_loop(a: NDArray[int]) -> bool:
     return is_quasigroup(a) and is_unital(a)
 
+
 def left_power_assoc_hlpr(i:int, i_to_nmk:int, a:NDArray[int], k:int) -> bool:
     if not k:
         return True
