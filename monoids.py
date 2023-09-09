@@ -214,8 +214,25 @@ def cyclic_group(n:int) -> NDArray[int]:
     for _ in range(n - 1):
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
-    
-          
+
+from sympy.core import symbol.Symbol as Symbol
+
+def det(G:NDArray[int]) -> list[Symbol]:
+    from sympy.core import mul.Mul as Mul
+    from sympy import factor, symbols, Matrix, I
+    xs = symbols(' '.join([f'x_{i}' for i in range(len(G))]))
+    m = Matrix[[ [xs[j] for j in G[i]] for i in range(len(G))]]
+    factors = factor(m.det(), extension=[I])
+    out = []
+    while factors:
+        f0 = factors.pop()
+        while isinstance(f := factor(f0, extension=[I]), Mul):
+            factors.extend(f.args)
+        out.append(f)
+    return out
+        
+
+
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:
