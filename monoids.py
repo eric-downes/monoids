@@ -4,6 +4,8 @@ from hashlib import blake2b
 import sys
 import re
 
+from sympy.core.symbol import Symbol
+from sympy.core.mul import Mul
 from pprint import pprint
 
 from magmas import *
@@ -215,25 +217,27 @@ def cyclic_group(n:int) -> NDArray[int]:
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
 
-from sympy.core import symbol.Symbol as Symbol
+def det(G:NDArray[int]) -> Mul:
+    # omg soooo slooooooooowwwwwwww
+    from sympy import factor, Matrix, I
+    ident = [Symbol(f'x_{i}') for i in range(len(G))]
+    m = [[ident[j] for j in G[i]] for i in range(len(G))]
+    M = Matrix(m) # for some reason this needs to be on its own line!
+    return factor(m.det(), extension = [I])
 
-def det(G:NDArray[int]) -> list[Symbol]:
-    from sympy.core import mul.Mul as Mul
-    from sympy import factor, symbols, Matrix, I
-    xs = symbols(' '.join([f'x_{i}' for i in range(len(G))]))
-    m = Matrix[[ [xs[j] for j in G[i]] for i in range(len(G))]]
-    factors = factor(m.det(), extension=[I])
-    out = []
-    while factors:
-        f0 = factors.pop()
-        while isinstance(f := factor(f0, extension=[I]), Mul):
-            factors.extend(f.args)
-        out.append(f)
-    return out
-        
 
 
 '''
+    from sympy.core.power import Pow
+    out = []
+    while factors:
+        f0 = factors.pop()
+        while isinstance(f := factor(f0, extension = [I]), Mul|Pow):
+            factors.extend(f.args)
+        out.append(f)
+    return out
+
+
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:
     assert k > 0, "undef for generic magma"

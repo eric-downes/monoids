@@ -193,6 +193,41 @@ def is_group_pres_valid(a: NDArray[int],
         print(pres.__name__, 'INVALID:', e)
         return False
 
+def find_first_nz(a:NDArray[int]|list[int]) -> int:
+    idx = a.view(bool).argmax() // a.itemsize
+    return idx if x[idx] else -1
+ 
+def verbose_pres_from_table(G:NDArray[int],
+                            gens:list[int]) -> dict[int, tuple[str, int, int]]:
+    assert G == submagma(G, gens)
+    orbs = {}
+    seen = {0:('^', 0, 1)}
+    unseen = set(range(len(G))) - set(gens)
+    for g in gens:
+        orbs.append(orbit(g, G))
+        seen[g] = ('^', g, 1)
+    for orb in orbs:
+        g = orb[0] # g, g^2, g^3, ..., 1
+        for i,k in enumerate(orb):
+            if k not in seen:
+                seen[k] = ('^', g, i + 1)
+                unseen.drop(k)
+    while unseen:
+        u = len(unseen)
+        helems = list(seen.keys())
+        Hflat = G[helems].T[helems].T.ravel()
+        iz, jz = np.divmod(np.arange(len(Hflat)), len(helems))
+        for x in unseen & set(Hflat):
+            idx = find_first_nz(Hflat == x)
+            seen[x] = ('*', iz[idx], jz[idx])
+            unseen.drop(x)
+        if len(unseen) == u:
+            raise ValueError('exhausted gens, could not generate magma')
+    return seen
+
+
+
+
 
 'specific presentations'
 
