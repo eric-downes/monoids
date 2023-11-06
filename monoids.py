@@ -223,9 +223,7 @@ def det(G:NDArray[int]) -> Mul:
     ident = [Symbol(f'x_{i}') for i in range(len(G))]
     m = [[ident[j] for j in G[i]] for i in range(len(G))]
     M = Matrix(m) # for some reason this needs to be on its own line!
-    return factor(m.det(), extension = [I])
-
-
+    return M.det()
 
 '''
     from sympy.core.power import Pow
