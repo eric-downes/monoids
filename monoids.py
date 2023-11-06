@@ -15,6 +15,7 @@ Unop = Callable[[T],T]
 RowId = bytes|tuple[int,...]
 Rows = dict[RowId, int]
 HashFcn = Callable[[T], RowId]
+LoT = list[tuple[T,T]]
 
 class NovelRow(Exception): pass
     
@@ -197,15 +198,19 @@ def quotient(g:NDArray[int], helems:set[int]
     # implicitly assuming <h> is a group...
     assert not (qord := divmod(gord := len(g), len(helems)))[1]
     hmap = list(helems)
-    assert is_abelian(g[hmap].T[hmap].T)
-    assert is_group(g)
+    #assert is_abelian(g[hmap].T[hmap].T)
+    #assert is_group(g)
     gi_to_qi = {c:0 for c in helems}
     qmap = [0]
     for i in range(gord):
         if i not in gi_to_qi:
             coset = set(g[i, hmap])
-            gi_to_qi |= {c:len(qmap) for c in coset}
-            qmap.append(min(coset))
+            for c in coset:
+                y = len(qmap)
+                if x := gi_to_qi.get(c, None):
+                    raise ValueError(f'cosets not mut excl; {c} |-> {x}, {y}')
+                gi_to_qi[c] = y
+            qmap.append(min(coset)) # min(coset) is the coset representative
     lol = []
     for equiv in qmap:
         lol.append([gi_to_qi[e] for e in g[equiv, qmap]])
@@ -217,13 +222,76 @@ def cyclic_group(n:int) -> NDArray[int]:
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
 
-def det(G:NDArray[int]) -> Mul:
-    # omg soooo slooooooooowwwwwwww
+def det(G:NDArray[int], method:str = 'lu') -> Mul:
+    # lu ftw; don't even bother with other methods
     from sympy import factor, Matrix, I
     ident = [Symbol(f'x_{i}') for i in range(len(G))]
     m = [[ident[j] for j in G[i]] for i in range(len(G))]
     M = Matrix(m) # for some reason this needs to be on its own line!
-    return M.det()
+    return M.det(method = method)
+
+def action_product(a:NDArray[int],
+                   b:NDArray[int],
+                   calc_xtr:bool = True,
+                   ) -> tuple[NDArray[int], LoT[int]|None, LoT[int]]:
+    # setup coords
+    if calc_xtr:
+        xtrans = {t:i for i,t in enumerate(zip(
+            np.repeat(np.arange(a.shape[0]), b.shape[0]),
+            np.tile(np.arange(b.shape[0]), a.shape[0]) ))}
+    else:
+        xtrans = None
+    ytrans = {t:i for i,t in enumerate(zip(
+        np.repeat(np.arange(a.shape[1]), b.shape[1]),
+        np.tile(np.arange(b.shape[1]), a.shape[1]) ))}
+    # setup data
+    shp = tuple(a.shape[i] * b.shape[i] for i in range(2)) + (3,)
+    ab = np.ndarray(shape = shp, dtype = int)
+    ab[:,:,0] = np.repeat(np.repeat(a, b.shape[0], 0), b.shape[1], 1)
+    ab[:,:,1] = np.tile(b, a.shape)
+    # apply and return, assuming left actions
+    def fcn(z:np.array) -> None:
+        z[-1] = ytrans[tuple(z[:-1])]
+    np.apply_along_axis(fcn, 2, ab)
+    return ab[:,:,2], xtrans, ytrans
+
+def direct_product(a:NDArray[int],
+                   b:NDArray[int]) -> tuple[NDArray[int], LoT[int]]:
+    assert is_square(a) and is_square(b)
+    p, x, y = action_product(a, b, False)
+    return p, y
+
+def central_elems(a:NDArray[int]) -> NDArray[int]:
+    assert is_square(a)
+    return np.nonzero((a == a.T).all(0))
+
+def central_product(H:NDArray[int], K:NDArray[int],
+                    phi: dict[int,int] = None,
+                    ) -> tuple[NDArray[int], LoT[int]]:
+    ''' https://en.wikipedia.org/wiki/Central_product
+    The external central product is constructed from two groups H and K,
+    two subgroups H1 <= Z(H) and K1 <= Z(K), and a group isomorphism
+    phi: H1 <--> K1.  The external central product is the quotient of the
+    direct product H x K by the normal subgroup
+      N = {(h,k) in H1 x K1 and phi(h) * k = 1_K}
+    ... except we implement for loops
+    '''
+    assert is_loop(H) and is_loop(K)
+    if phi is None:
+        phi = {}
+        h1_elem = central_elem(H)
+        k1_elem = central_elem(K)
+        assert len(h1_elem) == len(k1_elem)
+        phi = {h: np.argmin(K[k]) for h,k in zip(h1_elem, k1_elem)}
+    else:
+        h1_elem, k1_elem = zip(sorted(phi.items(), key = lambda x: x[0]))
+        assert len(set(k1_elem)) == len(phi)
+    HxK, trans = direct_product(H, K)
+    denom_elem = [trans[(h,k)] for h,k in phi.items()]
+    HoK, qmap = quotient(HxK, denom_elem)
+    # need to compose qmap with trans somehow...
+    raise NotImplementedError()
+
 
 '''
     from sympy.core.power import Pow

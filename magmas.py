@@ -1,3 +1,6 @@
+from __future__ import annotations
+from collections import Counter
+
 from utils import *
 
 def magma_section(a:NDArray[int], subset:Iterator[int]
@@ -20,15 +23,16 @@ def is_endo(a: NDArray[int]) -> bool:
     return np.issubdtype(a.dtype, np.integer) \
         and (a < max(a.shape)).all() and (0 <= a).all()
 
-def is_unital(a: NDArray[int]) -> bool:
+def get_identity_idx(a: NDArray[int]) -> int|None:
     rone = np.arange(a.shape[1])
     rhas = (rone == a).all(1)
-    cone = np.arange(a.shape[0])    
+    cone = np.arange(a.shape[0])
     chas = (cone == a.T).all(1)
-    n = min(len(rhas), len(chas))
-    if (rhas[:n] * chas[:n]).any():
-        return True
-    return False
+    n = min(a.shape)
+    return first_true_idx(rhas[:n] * chas[:n])
+
+def is_unital(a: NDArray[int]) -> bool:
+    return get_identity_idx(a) is not None
 has_unit = is_unital
 
 def potency(a: NDArray[int]) -> bool:
@@ -107,7 +111,60 @@ def submagma(G:NDArray[int],
 
 
 
+class Bag:
+    def __init__(self, cntrs:list[Counter|np.array] = [], n:int = 1):
+        self.counts = {}
+        if not isinstance(cntrs, list):
+            cntrs = [cntrs]
+        for cnt in cntrs:
+            if not isinstance(cnt, Counter):
+                cnt = Counter(cnt)
+            print(cnt, 'lalallaa')
+            h = hash(tuple(cnt.keys()))
+            self.counts[h] = (n * (len(cnt) > 0), cnt)
 
+    def update(self, other:Bag) -> Bag:
+        self.__add__(other, True)
+
+    def __repr__(self) -> str:
+        args = []
+        for coeff, cnts in self.counts.values():
+            if not coeff: continue
+            inner = [f'{coeff}'] * (coeff != 1)
+            for i,n in cnts.items():
+                inner.append(f'x{i}**{n}' if n != 1 else f'x{i}')
+            args.append('*'.join(inner))
+        return ' + '.join(args)
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.counts.items()))
+
+    def __eq__(self, other:Bag) -> bool:
+        return hash(self) == hash(other)
+        
+    def __add__(self, other:Bag, inplace: bool = False) -> Bag:
+        if inplace: 
+            y = self.counts
+            x = other.counts
+        else:
+            x, y = sorted([self.counts, other.counts], key = len)
+            y = y.copy()
+        for hashkey, (coeff, cntr) in x.items():
+            if hashkey in y:
+                coeff += y[hashkey][0]
+            y[hashkey] = (coeff, cntr)
+        if not inplace:
+            b = Bag()
+            b.counts = y
+            return b
+
+    def __mul__(self, other:Bag|int) -> Bag:
+        new = Bag([])
+        for a, ka in self.counts:
+            for b, kb in other.counts:
+                c = b.copy().update(a) # counter update
+                new.update(Bag(c, ka * kb)) # bag update
+        return new
 
 def fingerprint(x):
     return hash(tuple(x))

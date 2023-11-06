@@ -26,6 +26,13 @@ class Applicator:
             a = self.f(a, j, i)
         return self.square(a, until)
 
+def first_true_idx(x:np.array) -> None|int:
+    i = x.view(bool).argmax() // x.itemsize
+    return i if i or x[i] else None
+
+def findall(x:np.array) -> list[int]:
+    return np.nonzero(x)
+
 def iprod(itera:Iterator[T], iterb:Iterator[T]) -> Iterator[tuple[T,T]]:
     for a in itera:
         for b in iterb:
