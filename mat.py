@@ -42,5 +42,15 @@ def matmon_cayley(m:MatMon,
                 p = k
                 k += 1
             t[i,j] = p
-    return unital_square_table(t)
+    mc, perm = unital_square_table(t)
+    dim = max([len(x) for x in m])
+    return mc, [np.eye(dim) if i is None else m[i] for i in perm]
 
+def matmon_tensor_product(M:MatMon, N:MatMon) -> MatMon:
+    # need to invert mtr, ntr?
+    mc, mtr = matmon_cayley(M)
+    nc, ntr = matmon_cayley(N)
+    mnc, mntr = direct_product(mc, nc)
+    rep = [kronecker_product(mtr[m], ntr[n]) for m, n in mntr]
+    return mnc, rep
+    
