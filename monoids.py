@@ -17,6 +17,9 @@ Rows = dict[RowId, int]
 HashFcn = Callable[[T], RowId]
 LoT = list[tuple[T,T]]
 
+Grp = NDArray[int] # square, group
+Action = NDArray[int] # rectangle, ea row injective if grp act
+
 class NovelRow(Exception): pass
     
 @dataclass
@@ -230,10 +233,10 @@ def det(G:NDArray[int], method:str = 'lu') -> Mul:
     M = Matrix(m) # for some reason this needs to be on its own line!
     return M.det(method = method)
 
-def action_product(a:NDArray[int],
-                   b:NDArray[int],
-                   calc_xtr:bool = True,
-                   ) -> tuple[NDArray[int], LoT[int]|None, LoT[int]]:
+def general_action_product(a:NDArray[int],
+                           b:NDArray[int],
+                           calc_xtr:bool = True,
+                           ) -> tuple[NDArray[int], LoT[int]|None, LoT[int]]:
     # setup coords
     if calc_xtr:
         xtrans = {t:i for i,t in enumerate(zip(
@@ -249,17 +252,62 @@ def action_product(a:NDArray[int],
     ab = np.ndarray(shape = shp, dtype = int)
     ab[:,:,0] = np.repeat(np.repeat(a, b.shape[0], 0), b.shape[1], 1)
     ab[:,:,1] = np.tile(b, a.shape)
+    return ab, xtrans, ytrans
+
+def direct_action_product(a:NDArray[int],
+                          b:NDArray[int],
+                          calc_xtr:bool = True,
+                          ) -> tuple[NDArray[int], LoT[int]|None, LoT[int]]:
+    ab, xtrans, ytrans = general_action_product(a, b, calc_xtr)
     # apply and return, assuming left actions
     def fcn(z:np.array) -> None:
         z[-1] = ytrans[tuple(z[:-1])]
     np.apply_along_axis(fcn, 2, ab)
     return ab[:,:,2], xtrans, ytrans
-
+        
 def direct_product(a:NDArray[int],
                    b:NDArray[int]) -> tuple[NDArray[int], LoT[int]]:
     assert is_square(a) and is_square(b)
-    p, x, y = action_product(a, b, False)
-    return p, y
+    ab, _, ytrans = direct_action_product(a, b, False)
+    # apply and return, assuming left actions
+    def fcn(z:np.array) -> None:
+        z[-1] = ytrans[tuple(z[:-1])]
+    np.apply_along_axis(fcn, 2, ab)
+    return ab[:,:,2], ytrans
+
+def verify_act(G:Grp, act:Action, H:Grp) -> bool:
+    '''
+    G -- source monoid
+    act -- monoid action of G on H
+    H -- target monoid
+    verifies the arguments satisfy
+    act : G --> End(H)
+    '''
+    if (len(G), len(H)) != act.shape:
+        return False
+    for g, phi in enumerate(act):
+        lhs = phi[ G[g] ]
+        rhs = H[ phi[g] ][ phi ]
+        if (lhs != rhs).any():
+            return False
+    return True
+
+def sdp(G:Grp, H:Grp, phi:Action) -> tuple[Grp, list[int]]:
+    assert verify_act(G, phi, H)
+    tr = {}
+    z = []
+    GH = np.ndarray(shape = [(leng := len(G)) * (lenh := len(H))] * 2, dtype = int)
+    for i, (g, h) in enumerate(zip(
+            np.repeat(np.arange(leng), lenh),
+            np.tile(np.arange(lenh), leng) )):
+        z.append(t := (g,h))
+        tr[t] = i
+    for i, (g, h) in enumerate(z):
+        aut = phi[g]
+        t0 = np.repeat(G[g], lenh)
+        t1 = np.tile(H[h][aut], leng)
+        GH[i] = np.array([tr[t] for t in zip(t0, t1)])
+    return GH, tr
 
 def central_elems(a:NDArray[int]) -> NDArray[int]:
     assert is_square(a)
@@ -279,8 +327,8 @@ def central_product(H:NDArray[int], K:NDArray[int],
     assert is_loop(H) and is_loop(K)
     if phi is None:
         phi = {}
-        h1_elem = central_elem(H)
-        k1_elem = central_elem(K)
+        h1_elem = central_elems(H)
+        k1_elem = central_elems(K)
         assert len(h1_elem) == len(k1_elem)
         phi = {h: np.argmin(K[k]) for h,k in zip(h1_elem, k1_elem)}
     else:
