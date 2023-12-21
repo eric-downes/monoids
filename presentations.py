@@ -226,6 +226,21 @@ def verbose_pres_from_table(G:NDArray[int],
     return seen
 
 
+'map gen'
+T = TypeVar('T')
+from functools import reduce
+from itertools import cycle
+
+def cycle_novelbit(s:set[T]) -> Iterator[tuple[T,bool]]:
+    for i, x in enumerate(cycle(s)):
+        yield x, i < len(s)
+
+def los_cycle(m:list[set[int]]) -> Iterator[tuple[int]]:
+    for vals, novelbits in zip(map(cycle_novelbit, m)):
+        if not reduce(op.or_, novelbits): return
+        yield vals
+    
+            
 
 
 
