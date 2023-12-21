@@ -18,6 +18,7 @@ from magmas import submagma, invert
 
 Order = int
 Elem = int
+T = TypeVar('T')
 
 class InvalidPres(ValueError):
     pass
@@ -179,6 +180,28 @@ class GrpGenFambly:
     def _disown_child(self) -> GrpGen:
         return self.stack.pop()
 
+
+'fcns'
+
+def hetero_product(los:list[Sequence[T]]) -> Iterator[list[T]]:
+    # like itertools.product but uses a list of different sequences
+    # hetero_product([[1,2],[11,22], [111,222,333]]) --> [1,11,111], [1,11,222], ... [2,22,333]
+    # essentially an associative cartesian product
+    depth = 0 # ptr to keep track of which iterator is active
+    vals = [None] * (maxidx := len(los)) # output list
+    maxidx -= 1
+    loi = [iter(s) for s in los] # list of iterators
+    while depth >= 0:
+        try: vals[depth] = next(loi[depth]) # get next value at depth
+        except StopIteration:
+            loi[depth] = iter(los[depth]) # reset iterator at depth
+            depth -= 1 # ascend one level
+            continue
+        if depth < maxidx: # if we haven't reached the bottom
+            depth += 1 # descend
+            continue
+        yield vals.copy()
+    return
 
 def is_group_pres_valid(a: NDArray[int],
                         pres:Callable[NDArray[int],None],
