@@ -72,6 +72,8 @@ def compose_and_record(a: NDArray[int],
                        count: Callable = default_count,
                        verbose: bool = False,
                        raise_on_novel: bool = False) -> NDArray[int]:
+    while max(i,j) >= a.shape[0]:
+        a = double_rows(a)
     n = prog['n']
     ak = a[i][ a[j] ] #even on large a, a[i] takes ns; prob dont need to cache
     k = rows.setdefault(row_hash(ak), n)
@@ -86,7 +88,7 @@ def compose_and_record(a: NDArray[int],
             raise NovelRow()
         a[n] = ak
         n += 1
-        if n == a.shape[0]:
+        while n >= a.shape[0]:
             a = double_rows(a)
         prog['n'] = n
     if verbose:
@@ -115,8 +117,8 @@ def row_closure(a:NDArray[int],
     a = app.square(double_rows(a), n)
     a = double_rows(a)
     while n != prog['n']:
-        app.extend(a, (n := prog['n']))
-        print(f"a now has {prog['n']} rows")
+        a = app.extend(a, (n := prog['n']))
+        print(f"a now has {prog['n']} rows; a.shape={a.shape}")
     return a[:n], dok, rows, [gens[i] for i in range(len(gens))]
 
 def is_associative(a: NDArray[int]) -> bool:
