@@ -2,8 +2,7 @@
 
 "It's Monoids, Monoids All the Way Down." -- Ancient Babylonian Saying
 
-A broad overview of where this could lead [notion](https://proximal-vise-0cf.notion.site/Proj-Space-of-an-octonion-adjoint-group-303cb631e83b4315a2a74f1bca34889f)
-
+Some notes in progress on the theory in [notion](https://www.notion.so/Subsets-Magmas-Subspaces-Sets-Monoids-Spaces-b9be2ff6a51b4752972c531a8366e069?pvs=4)
 
 ## Running with pre-existing python 3.10+
 
@@ -14,11 +13,11 @@ python3 -m pip install -r requirements.txt
 python3 demo.py
 ```
 
-This shows the construction of an (unidentified)
-21-element transition monoid for the "Rock-Paper-Scissors" magma.
+This shows the construction of an (unnamed)
+21-element monoid adjoint to the "Rock-Paper-Scissors" magma.
 
-If you want to see progress on verifying the transition group of the
-octonions (warning, slow):
+If you want to see progress on verifying the adjoint group of the
+unit octonion loop (slower), as the extraspecial group of order 128 (plus-type);
 
 ```
 python3 demo.py --octonions
@@ -40,38 +39,6 @@ versions of python installed and switch between them as needed.)
 1. `python3 demo.py --octonions` sit back and watch it compute!
 
 
-## Rough Draft
-
-How to view a non-associative magma as part of a monoid.
+## Older notes
 
 [Here](https://paper.dropbox.com/doc/Its-Monoids-All-the-Way-Down-JL8ZKqYfnX5mudQoIGX4A#:uid=017421118273067050805863&h2=Magma-%E2%86%92-Monoid-Embedding-Theor) is where I am writing the first draft of a friendly treatment.
-
-## Longer version
-
-This could be an expository paper. Intended audience maybe upper
-undergrad level, or computer programmers?
-
-1. Non-Associative Things
-   - Cartesian Product
-   - Subtraction and Division
-   - Rock Paper Scissors
-   - Exponentiation
-   - Cross Product
-   - Lie Bracket
-   - Reverse Polish Notation
-1. Background
-   - Magmas
-   - Categories
-   - Monoids
-   - The Free Monoid
-   - Mult. Tables and State Diagrams
-   - Function currying and operads
-1. The Adjoint and Curried Monoid
-   - Associativity <=> Closure
-   - Construction Examples
-   - ...
-1. Applications
-   - ...
-1. Lean Proofs
-   - ...
-1. Jupyter notebooks
