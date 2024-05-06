@@ -1,5 +1,7 @@
 from utils import *
 
+def ident(n:int) -> NDArray[int]: return np.arange(n)
+
 def magma_section(a:NDArray[int], subset:Iterator[int]
                   ) -> tuple[NDArray[int], list[int], bool]:
     elems = sorted(subset)
@@ -105,12 +107,15 @@ def submagma(G:NDArray[int],
     gi_to_hi = invert(helems)
     return np.array([gi_to_hi[row] for row in H]), helems
 
-
-
-
-
 def fingerprint(x):
     return hash(tuple(x))
+
+def magma_direct_image(M:NDArray[int],
+                       L:set[int],
+                       R:set[int]) -> set[int]:
+    return set(M[list(L)].T[list(R)].ravel())
+
+
 
 NAMES = {(1,0,0):'Unital Magma',
          (1,1,0):'Monoid',
