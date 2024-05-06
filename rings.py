@@ -5,8 +5,8 @@ from monoids import *
 from maps import preimage
 
 Coord = tuple[int,int,int]
-Points = dict[Coord, set[Coord]]
-Lines = dict[Coord, set[frozenset[Coord]]]
+Points = dict[Coord, set[Coord]] # points -> equiv classes of vectors
+Lines = dict[Coord, set[frozenset[Coord]]] # points -> lines (sets of points)
 
 ZERO = (0,0,0)
 
@@ -47,6 +47,10 @@ def linear_2d_subspace(R:Ring,
     return frozenset(seen)
 
 def right_proj_plane(R:Ring) -> tuple[Points, Lines]:
+    '''
+    F2 = Ring(np.array([[0,1],[1,0]]), np.array([[0,0],[0,1]]))
+    FanoPlane = right_proj_plane(F2)
+    '''
     card = len(R.add)
 
     # form the partition of arrays into points
