@@ -108,7 +108,7 @@ def row_closure(a:NDArray[int],
         rows[row_hash(r)] = i
         gens[i] = labels[i] if labels else str(i)
     prog = {'n': (n := a.shape[0])}
-    gstrs = ''.join(set(re.findall('\w', ''.join(labels))))
+    gstrs = ''.join(set(re.findall(r'\w', ''.join(labels))))
     count = partial(default_count, gstrs = gstrs)
     fcn = partial(compose_and_record, count = count,
                   dok = dok, rows = rows, prog = prog, gens = gens,
@@ -217,7 +217,16 @@ def cyclic_group(n:int) -> NDArray[int]:
     for _ in range(n - 1):
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
-    
+
+def is_monoid_hom(dom:NDArray[int], phi:NDArray[int], cod:NDArray[int]) -> bool:
+    assert is_monoid(dom) and is_monoid(cod)
+    assert len(phi) == len(dom) and max(phi) < len(cod)
+    if phi[0] != 0: return False
+    jj = ident(len(dom))
+    for i in range(len(dom)):
+        if any(phi[dom[i]] != cod[phi[i]][phi[jj]]):
+            return False
+    return True
           
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:

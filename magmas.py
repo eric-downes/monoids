@@ -1,5 +1,7 @@
 from utils import *
 
+def ident(n:int) -> NDArray[int]: return np.arange(n)
+
 def magma_section(a:NDArray[int], subset:Iterator[int]
                   ) -> tuple[NDArray[int], list[int], bool]:
     elems = sorted(subset)
