@@ -115,7 +115,15 @@ def magma_direct_image(M:NDArray[int],
                        R:set[int]) -> set[int]:
     return set(M[list(L)].T[list(R)].ravel())
 
-
+def is_homomorphism(dom:NDArray[int], phi:NDArray[int], cod:NDArray[int]) -> bool:
+    assert is_magma(dom) and is_magma(cod)
+    assert len(phi) == len(dom) and max(phi) < len(cod)
+    if phi[0] != 0: return False
+    jj = ident(len(dom))
+    for i in range(len(dom)):
+        if any(phi[dom[i]] != cod[phi[i]][phi[jj]]):
+            return False
+    return True
 
 NAMES = {(1,0,0):'Unital Magma',
          (1,1,0):'Monoid',

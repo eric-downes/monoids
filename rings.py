@@ -10,28 +10,42 @@ Lines = dict[Coord, set[frozenset[Coord]]] # points -> lines (sets of points)
 
 ZERO = (0,0,0)
 
-class Ring:
-    def __init__(self, add:NDArray[int], mul:NDArray[int]):
+class NARng:
+    def __init__(self, add:NDArray[int], mul:NDArray[int]):    
         assert (n := len(add)) == len(mul)
-        assert all(mul[0] == 0) and all(mul.T[0] == 0)
-        assert all(mul[1] == np.arange(n)) and all(mul.T[1] == np.arange(n)) 
         assert is_abelian(add) and is_group(add)
-        assert is_monoid(mul)
-        assert all(is_monoid_hom(add, mul[i], add) for i in range(len(mul)))
+        assert is_magma(mul)
+        assert all(mul[0] == 0) and all(mul.T[0] == 0)
+        assert all(is_homomorphism(add, mul[i], add) for i in range(n))
         self.commutative = is_abelian(mul)
         if not self.commutative:
-            assert all(is_monoid_hom(add, mul.T[i], add) for i in range(len(mul)))
+            assert all(is_homomorphism(add, mul.T[i], add) for i in range(n))
         self.add = add
         self.mul = mul
+    def add_vectors(self, p:Coord, q:Coord) -> Coord:
+        return tuple(self.add[pp,qq] for pp,qq in zip(p,q))
+
+class Ring(NARng):
+    def __init__(self, add:NDArray[int], mul:NDArray[int]):
+        assert (n := len(add)) == len(mul)
+        assert all(mul[1] == np.arange(n)) and all(mul.T[1] == np.arange(n))
+        assert is_monoid(mul)        
+        super().__init__(add, mul)
     @property
     def unit_group_with_tr(self) -> tuple[NDArray[int], list[int]]:
         #groupprops.subwiki.org/wiki/Equality_of_left_and_right_inverses_in_monoid
         idx, jdx = (self.mul == 1).nonzero()
         gelem = list(set(idx) & set(jdx))
         return submagma(self.mul, gelem)
-    def add_vectors(self, p:Coord, q:Coord) -> Coord:
-        return tuple(self.add[pp,qq] for pp,qq in zip(p,q))
 
+class Field(Ring):
+    def __init__(self, add:NDArray[int], mul:NDArray[int]):
+        assert is_group(mul[1:].T[1:] - 1)
+        super().__init__(add, mul)
+    @property
+    def unit_group_with_tr(self) -> tuple[NDArray[int], list[int]]:
+        return self.mul[1:,1:], list(range(1, len(self.mul)))
+        
 def linear_2d_subspace(R:Ring,
                        p:Coord,
                        q:Coord,
