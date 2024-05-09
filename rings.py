@@ -24,6 +24,8 @@ class NARng:
         self.mul = mul
     def add_vectors(self, p:Coord, q:Coord) -> Coord:
         return tuple(self.add[pp,qq] for pp,qq in zip(p,q))
+    def __len__(self) -> int:
+        return len(self.add)
 
 class Ring(NARng):
     def __init__(self, add:NDArray[int], mul:NDArray[int]):
