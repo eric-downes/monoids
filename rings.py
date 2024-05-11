@@ -26,6 +26,8 @@ class NARng:
         return tuple(self.add[pp,qq] for pp,qq in zip(p,q))
     def __len__(self) -> int:
         return len(self.add)
+    def __str__(self) -> str:
+        return f'Addition:\n{self.add}\nMultiplication:\n{self.mul}'
 
 class Ring(NARng):
     def __init__(self, add:NDArray[int], mul:NDArray[int]):

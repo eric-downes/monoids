@@ -1,4 +1,7 @@
+from pprint import pprint
+
 from presentations import *
+from algebras import *
 from monoids import *
 
 if __name__ == '__main__':
@@ -41,9 +44,9 @@ if __name__ == '__main__':
         rps_magma = np.array([[0,1,0], [1,1,2], [0,2,2]])
         data = row_monoid(rps_magma, verbose=verbose)
     pd.DataFrame(data.monoid_table).to_csv(fil, index=False, header=False)
-    print('\n\n\nresults!')
-    print(f'\n\noriginal magma:\n{data.row_closure[:data.magma_order]}')
-    print(f'\n\nrow monoid:\n{data.monoid_table}')
+    print('\nresults!')
+    print(f'\noriginal magma:\n{data.row_closure[:data.magma_order]}')
+    print(f'\nrow monoid:\n{data.monoid_table}\n')
     for r,i in data.row_map.items():
         n = data.labels[i]
         name = n.replace('-','')
@@ -51,3 +54,11 @@ if __name__ == '__main__':
             name = '-' + name
         s = f'[{r}]'.replace(',','')
         print(f'g({i}) = {name}: {s}')
+    print('\n\nThe Ring of algebra F2[Z3];')
+    F2 = Field(np.array([[0,1],[1,0]]), np.array([[0,0],[0,1]]))
+    Z3 = cyclic_group(3)
+    F2Z3 = Algebra(F2, Z3)
+    print(F2Z3.ring())
+    print(f'Elements:')
+    for k,v in F2Z3.elements.items():
+        print(f'{k}:{v}')
