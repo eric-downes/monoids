@@ -30,9 +30,19 @@ class NARng:
 class Ring(NARng):
     def __init__(self, add:NDArray[int], mul:NDArray[int]):
         assert (n := len(add)) == len(mul)
-        assert all(mul[1] == np.arange(n)) and all(mul.T[1] == np.arange(n))
-        assert is_monoid(mul)        
+        assert is_monoid(mul)
+        for i in range(1, n):
+            if all(mul[i] == np.arange(n)) and all(mul.T[i] == np.arange(n)):
+                if i == 1:
+                    orig = np.arange(n)
+                else:
+                    perm = np.array([0] + list(range(i,n)) + list(range(1,i)))
+                    mul = mul[perm].T[perm].T
+                    orig = invert(perm)
+                break
+        else: raise ValueError('Ring must have a 2-sided identity; none found')
         super().__init__(add, mul)
+        self.recovery_index = orig
     @property
     def unit_group_with_tr(self) -> tuple[NDArray[int], list[int]]:
         #groupprops.subwiki.org/wiki/Equality_of_left_and_right_inverses_in_monoid

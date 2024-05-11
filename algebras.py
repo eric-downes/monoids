@@ -45,8 +45,7 @@ class Algebra:
         return {vec:idx for idx, vec in ivecs}
     def ring(self) -> NARng:
         # should rewrite taking advantage of distributive property?
-        #ring_cons = Ring if self.associative else NAArng
-        vecs = self.elements
+        n = len(vecs := self.elements)
         add, mul = [], []
         for u in map(np.array, vecs):
             addi, muli = [], []
@@ -55,7 +54,8 @@ class Algebra:
                 muli += [vecs[tuple(self.mul_vectors(u, v))]]
             add += [addi]
             mul += [muli]
-        return NARng(np.array(add), np.array(mul))
+        ring_cons = Ring if self.associative else NARng
+        return ring_cons(np.array(add), np.array(mul))
     def _add_fcn(self, i:int, j:int) -> int:
         return self.field.add[i,j]
     

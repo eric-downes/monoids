@@ -13,6 +13,14 @@ def preimage(d:dict[H,K]) -> dict[K, set[H]]:
         p.setdefault(v, set()).add(k)
     return p
 
+def compose(endo:dict[int,int],
+            partial_endo:dict[int,int]) -> dict[int,int]:
+    a, b = endo, partial_endo
+    c = a.copy()
+    for k,v in b.items():
+        c[k] = b[v]
+    return c
+
 def weak_lru(maxsize:int = 128, typed:bool = False):
     'LRU Cache decorator that keeps a weak reference to "self"'
     def wrapper(func: Callable):
