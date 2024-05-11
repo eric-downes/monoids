@@ -218,16 +218,8 @@ def cyclic_group(n:int) -> NDArray[int]:
         lol.append( lol[-1][1:] + lol[-1][0:1] )
     return np.array(lol)
 
-def is_monoid_hom(dom:NDArray[int], phi:NDArray[int], cod:NDArray[int]) -> bool:
-    assert is_monoid(dom) and is_monoid(cod)
-    assert len(phi) == len(dom) and max(phi) < len(cod)
-    if phi[0] != 0: return False
-    jj = ident(len(dom))
-    for i in range(len(dom)):
-        if any(phi[dom[i]] != cod[phi[i]][phi[jj]]):
-            return False
-    return True
-          
+is_monoid_hom = is_homomorphism
+
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:
