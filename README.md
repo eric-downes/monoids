@@ -30,13 +30,13 @@ keep your setup easy-to-maintain.  (It allows you to have many
 versions of python installed and switch between them as needed.)
 
 1. Install [pyenv](https://github.com/pyenv/pyenv)
-1. `pyenv install 3.11.0`; 3.11 60% faster than previous versions
-1. `pyenv shell 3.11.0`; makes your current shell use that python version
-1. `which python3` should show something with "shims" in it
-1. `python3 --version`; should show 3.11
+1. `pyenv install 3.11.0` # 3.11 60% faster than previous versions
+1. `pyenv shell 3.11.0` # makes your current shell use that python version
+1. `which python3` # should show something with "shims" in it
+1. `python3 --version` # should show 3.11
 1. `python3 -m pip install -r requirements.txt`
-1. `python3 demo.py` quick RPS-magma demo
-1. `python3 demo.py --octonions` sit back and watch it compute!
+1. `python3 demo.py` # quick RPS-magma demo
+1. `python3 demo.py --octonions` # sit back and watch it compute!
 
 
 ## Older notes
