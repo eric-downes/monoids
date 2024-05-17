@@ -220,7 +220,46 @@ def cyclic_group(n:int) -> NDArray[int]:
 
 is_monoid_hom = is_homomorphism
 
+def min_generators(M:NDArray[int]) -> set[int]:
+    orbit = {}
+    inv = {}
+    for i in range(len(M)):
+        if i not in inv: # exists y in M; xy = z ==> orbit(z) <= orbit(x)
+            orbit[i] = (orb := _orbit(i, M[i]))
+            for j in orb:
+                inv.setdefault(j, set()).add(i)
+    img = set()
+    gens = set()
+    key = lambda x: len(x[1])
+    for i, cangen in sorted(inv.items(), key = key)
+        if i in img: continue
+        if len(dgen := cangen - gens) == 1:
+            dorb = orbit[j := dgen.pop()]
+        else:
+            j, dorb = max([(j, set(orbit[j]) - img) for j in dgen], key = key)
+        img.update(dorb)
+        gens.update(j)
+    for j in gens:
+        
+
 '''
+def min_generators(M:NDArray[int]) -> set[int]:
+    orbits = {}
+    closure = {}
+    candidates = {}
+    maxlen = 0
+    for i in range(len(M)):
+        if i not in closure:
+            orbits[i] = (orb := set(_orbit(i, M[i])))
+            if (m := len(orb)) > maxlen:
+                maxlen = m
+                js = orb
+            else: js = orb - closure
+            for j in js:
+                closure[j] = i
+    for j, orb in sorted(orbits.items(), key = lambda x: len(x[1])):
+        
+
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
     # only well defined for power-assoc magmas:
     assert k > 0, "undef for generic magma"
