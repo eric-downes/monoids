@@ -1,12 +1,14 @@
+from itertools import product, combinations, batched
 from functools import lru_cache
-from itertools import product, combinations
+from math import sqrt
+import pickle
 
-from monoids import *
 from maps import preimage
+from monoids import *
 
-Coord = tuple[int,int,int]
-Points = dict[Coord, set[Coord]] # points -> equiv classes of vectors
-Lines = dict[Coord, set[frozenset[Coord]]] # points -> lines (sets of points)
+Coord = tuple[int,...]
+Vec = Coord | NDArray[int]
+ProjLine = frozenset[Coord] # lines contain points (pt = equivalence of vectors)
 
 ZERO = (0,0,0)
 
@@ -22,8 +24,27 @@ class NARng:
             assert all(is_homomorphism(add, mul.T[i], add) for i in range(n))
         self.add = add
         self.mul = mul
-    def add_vectors(self, p:Coord, q:Coord) -> Coord:
-        return tuple(self.add[pp,qq] for pp,qq in zip(p,q))
+    def sum(self, arr:Vec) -> int:
+        # for big arrays ~30x faster than reduce; 130 us x 3 ms on macmini
+        while len(arr) > 1:
+            n, pad = divmod(len(arr), 2)
+            n += pad
+            new = np.empty(n, dtype=int)
+            new[0:pad] = arr[0]
+            new[pad:] = self.add[arr[pad:n] , arr[n:]]
+            arr = new
+        return arr[0]
+    def matmul(self, M:NDArray[int], N:NDArray[int]) -> NDArray[int]:
+        # mem vs speed tradeoff... probably should broadcast ...
+        assert max(M.shape + N.shape) <= len(self.add)
+        assert M.shape[1] == N.shape[0]
+        NT = N.T
+        MN = np.ndarray(shape = (M.shape[0], N.shape[1]), dtype = int)
+        for i in range(MN.shape[0]):
+            Mi = M[i]
+            for j in range(MN.shape[1]):
+                MN[i,j] = self.sum(self.mul[Mi, NT[j]])
+        return MN
     def __len__(self) -> int:
         return len(self.add)
     def __str__(self) -> str:
@@ -49,55 +70,64 @@ class Field(Ring):
     @property
     def unit_group_with_tr(self) -> tuple[NDArray[int], list[int]]:
         return self.mul[1:,1:], list(range(1, len(self.mul)))
-        
+
+def flat_array(xs: set[Coord]) -> np.array:
+    l = []
+    for x in xs:
+        l.extend(x)
+    return np.array(l)
+    
 def linear_2d_subspace(R:Ring,
                        p:Coord,
-                       q:Coord,
-                       mod:dict[Coord,Coord] = None) -> frozenset[Coord]:
-    modfcn = (lambda x:x) if mod is None else (lambda x: mod[x])
+                       q:Coord) -> set[Coord]:
     seen = {ZERO}
-    new = {p,q}
+    new = {p, q}
+    l = len(p)
     while new:
         seen.add(n := new.pop())
-        addn = lambda x: modfcn(R.add_vectors(x, n))
-        new |= set(map(addn, seen)) - seen
-    seen.discard(ZERO)
-    return frozenset(seen)
+        ns = np.array(n * len(seen))
+        xs = flat_array(seen)
+        for vec in batched(R.add[ns, xs], l):
+            if (tup := tuple(vec)) not in seen:
+                new.add(tup)
+    return seen
 
-def right_proj_plane(R:Ring) -> tuple[Points, Lines]:
+def right_proj_plane(R:Ring) -> dict[Coord, set[ProjLine]]:
     '''
     F2 = Ring(np.array([[0,1],[1,0]]), np.array([[0,0],[0,1]]))
     FanoPlane = right_proj_plane(F2)
     '''
     card = len(R.add)
+    idx, jdx = (R.mul == 1).nonzero()
+    units = np.array(list(set(idx) & set(jdx)))
 
     # form the partition of arrays into points
     partition = {ZERO:ZERO}
     for ijk in product(range(len(R.add)), repeat = 3):
         if ijk in partition: continue
-        i, j, k = ijk
-        ideal = set(R.mul[i])
-        for idx in (j,k):
-            ideal |= magma_direct_image(R.add, ideal, set(R.mul[idx]))
-        if len(ideal) != card: continue
-        idx, jdx = (R.mul == 1).nonzero()
-        units = list(set(idx) & set(jdx))
-        multiples = R.mul[list(ijk)].T[units]
+        idx = np.unique(R.add[R.mul[ijk[0]]].T[R.mul[ijk[1]]].ravel())
+        ideal = np.unique(R.add[idx].T[R.mul[ijk[2]]].ravel())
+        if len(ideal) != card: continue # only want ideals as large as R itself
+        multiples = R.mul[np.array(ijk)].T[units]
         for arr in multiples:
             assert (t := tuple(arr)) not in partition
             partition[t] = ijk
-    points = preimage(partition)
-    points.pop(ZERO)
-    n_pts = len(points)
+    partition.pop(ZERO)
+    n_pts = len(points := set(partition.values()) - {ZERO})
+    pts_per_line = (1 + sqrt(4 * n_pts - 3)) / 2
+    if pts_per_line != round(pts_per_line):
+        with open((fil := 'err.pkl'), 'wb') as f:
+            pickle.dump(partition, f)
+        raise ValueError(
+            f'Cannot create plane of order {pts_per_line - 1}; state in {fil}')
     
     # join part reps to construct lines
     lines = {}
     for p, q in combinations(points, 2):
-        if len(lines.get(p, set())) == n_pts or \
-           len(lines.get(q, set())) == n_pts:
-            continue
-        line = linear_2d_subspace(R, p, q, partition)
-        for point in line:
-            lines.setdefault(point, set()).add(line)
-
-    return points, lines
+        if len(lines.setdefault(p, set())) < pts_per_line and \
+           len(lines.setdefault(q, set())) < pts_per_line:
+            subspace = linear_2d_subspace(R, p, q) & partition.keys()
+            pts = frozenset({partition[vec] for vec in subspace})
+            lines[p].add(pts)
+            lines[q].add(pts)
+    return lines

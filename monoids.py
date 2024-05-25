@@ -231,7 +231,7 @@ def min_generators(M:NDArray[int]) -> set[int]:
     img = set()
     gens = set()
     key = lambda x: len(x[1])
-    for i, cangen in sorted(inv.items(), key = key)
+    for i, cangen in sorted(inv.items(), key = key):
         if i in img: continue
         if len(dgen := cangen - gens) == 1:
             dorb = orbit[j := dgen.pop()]
@@ -239,7 +239,8 @@ def min_generators(M:NDArray[int]) -> set[int]:
             j, dorb = max([(j, set(orbit[j]) - img) for j in dgen], key = key)
         img.update(dorb)
         gens.update(j)
-    for j in gens:
+    pass
+
         
 
 '''

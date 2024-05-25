@@ -62,3 +62,8 @@ if __name__ == '__main__':
     print(f'Elements:')
     for k,v in F2Z3.elements.items():
         print(f'{k}:{v}')
+    print('\n\nThe Projective Plane P^2(F2[Z3]);')
+    lines = right_proj_plane(F2Z3.ring())
+    print(f'Projective Lines as sets of Projective Points:')
+    for i, l in enumerate(lines):
+        print(f'line {i}:\n\n{l}')
