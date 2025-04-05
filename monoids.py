@@ -1,4 +1,4 @@
-# test
+\# test
 from functools import partial, lru_cache
 from typing import TypeVar, Callable
 from hashlib import blake2b
@@ -120,6 +120,8 @@ def row_closure(a:NDArray[int],
         a = app.extend(a, (n := prog['n']))
         print(f"a now has {prog['n']} rows; a.shape={a.shape}")
     return a[:n], dok, rows, [gens[i] for i in range(len(gens))]
+
+
 
 def is_associative(a: NDArray[int]) -> bool:
     try: row_closure(a, verbose = False, raise_on_novel = True)
