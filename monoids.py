@@ -19,12 +19,13 @@ class NovelRow(Exception): pass
     
 @dataclass
 class RowMonoid:
-    row_closure: NDArray[int]
-    monoid_table: NDArray[int]
-    row_map: Rows
+    row_closure: NDArray[int] # perm. rep. of elem of <A>
+    monoid_table: NDArray[int] # <A>
+    row_map: Rows 
     magma_order: int # m.row_closure[:m.magma_order] is original magma
     labels: list[str] = None
-
+    def canonical_retraction(self) -> NDArray[int]:
+        return self.row_closure.T[0]
 
 def adjoin_identity(a:NDArray[int]) -> NDArray[int]:
     # somewhat fragile... need to make more robust typed relabellling system 
@@ -219,6 +220,7 @@ def cyclic_group(n:int) -> NDArray[int]:
     return np.array(lol)
 
 is_monoid_hom = is_homomorphism
+
 
 '''
 def left_magma_pow(i:int, pwr:int, a:NDArray[int], check:bool = False) -> int:
